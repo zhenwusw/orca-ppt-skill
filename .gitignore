@@ -20,3 +20,5 @@ npm-debug.log*
 # Examples: only publish the minimal story-circle demo
 examples/*
 !examples/story-circle/
+!examples/editorial-forest/
+!examples/soft-editorial/

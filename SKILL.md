@@ -14,6 +14,9 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 | **汇报稿** | 工作汇报、产品介绍、数据复盘。页面由文字、数字、面板组成 | `references/visual-spec.md` + `references/transitions.md` |
 | **故事稿** | 讲演变、讲历史。一页一张照片，靠照片里形状的呼应串起来 | `references/story-mode.md` + `references/transitions.md` 的「核心原则」「自检标准」 |
 
+**用户要某种配色、字体风格时**（「米色纸面加墨绿」「像杂志」「换成浅色」），
+读 `references/themes.md`：先看有没有现成主题，没有就按规范新建一个。不要在稿子里改颜色。
+
 **用户用剪辑软件里的转场名提需求时**（推、交叉缩放、圆形划像、溶解、百叶窗……），
 先读 `references/premiere-mapping.md`，按他想要的感觉选手法，不要照着复刻效果。
 
@@ -23,7 +26,8 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 2. **列内容**：每页一个主角。故事稿先写出这一期要推的一个论点。
 3. **写转场计划**：每次翻页一行，先写两页的「关系」，再选手法。计划作为 HTML 注释放进文件。
 4. **写页面**：从 `templates/starter.html` 开始，把 `{{ROOT}}` 换成
-   这份 HTML 到本 skill 根目录的相对路径。
+   这份 HTML 到本 skill 根目录的相对路径。用主题时，在 `tokens.css` 后面引入主题文件，
+   先读主题文件开头的注释（可以互变的颜色、新增的类）。
 5. **录制**：
    ```bash
    node <skill>/scripts/capture.mjs <deck>.html -o <deck>.mp4
@@ -44,14 +48,17 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 
 | 路径 | 内容 |
 | --- | --- |
-| `runtime/tokens.css` | 设计变量和样式类。不要改，也不要在稿子里覆盖 |
+| `runtime/tokens.css` | 设计变量和样式类（默认主题）。不要改，也不要在稿子里覆盖 |
+| `runtime/themes/` | 其他主题，只覆盖设计变量。可以按 `references/themes.md` 新建 |
 | `runtime/engine.js` | reveal 初始化 + 各种转场的实现 + 录制接口 |
 | `scripts/capture.mjs` | 逐帧录视频（系统 Chrome，不下载浏览器），打印每次转场的帧区间 |
 | `templates/starter.html` | 起始文件 |
 | `examples/story-circle/` | 故事模式示例（电话 → 相机 → 电视） |
+| `examples/editorial-forest/` | 主题 + 「整页 ↔ 卡片」示例（封面 → 目录 → 数据页） |
+| `examples/soft-editorial/` | 主题 + 形态变换换布局 + 多合一示例（洞察卡 → 数据面板 → 图表卡） |
 
 ## 不许做的
 
 - 不许写自己的 `<style>`，不许在 style 里写颜色和字号。
 - 不许自己写 GSAP 或 CSS 动画。转场只用规范里的属性。
-- 不许改 `runtime/` 和 `scripts/` 下的文件。觉得有 bug 就报告。
+- 不许改 `runtime/` 和 `scripts/` 下的文件，唯一的例外是按 `themes.md` 在 `runtime/themes/` 下**新建**主题。觉得有 bug 就报告。

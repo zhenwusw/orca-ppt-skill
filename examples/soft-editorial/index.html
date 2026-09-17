@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Field Notes · Soft Editorial</title>
+  <link rel="stylesheet" href="../../node_modules/reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="../../node_modules/reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="../../runtime/tokens.css">
+  <link rel="stylesheet" href="../../runtime/themes/soft-editorial.css">
+</head>
+<body>
+<div class="reveal">
+
+<!-- 转场计划（主题 Soft Editorial，粉 / 黄绿 / 桃三种颜色贯穿三页）
+1→2  关系：三张洞察卡还是那三张，换了布局：黄绿那张长成放 68% 的大面板，粉和桃缩到右侧   手法：形态变换   共享：c1, c2, c3
+2→3  关系：三块数据面板合成一张图表卡，卡里三根横条沿用这三种颜色                       手法：多合一     合并：panel
+-->
+
+<div class="slides">
+
+  <!-- 1 三条洞察 -->
+  <section data-auto-animate data-hold="2.5">
+    <p class="t-label t-dim" style="left:120px; top:96px;">Insights</p>
+    <p class="t-label t-dim" style="left:1600px; top:96px; width:200px; text-align:right;">02</p>
+
+    <div data-id="c1" class="s-accent" style="left:120px; top:200px; width:520px; height:680px;"></div>
+    <div data-id="c2" class="s-surface" style="left:680px; top:200px; width:520px; height:680px;"></div>
+    <div data-id="c3" class="s-accent-soft" style="left:1240px; top:200px; width:520px; height:680px;"></div>
+
+    <p class="t-label" style="left:160px; top:256px;">Insight #1</p>
+    <p class="t-h2" style="left:160px; top:300px; width:440px;">Trust is the onboarding.</p>
+    <p class="t-body" style="left:160px; top:560px; width:440px;">Customers don't churn on day one. They churn because the first three emails feel like a stranger.</p>
+
+    <p class="t-label" style="left:720px; top:256px;">Insight #2</p>
+    <p class="t-h2" style="left:720px; top:300px; width:440px;">Power users dread upgrades.</p>
+    <p class="t-body" style="left:720px; top:560px; width:440px;">The people we asked to love new features want fewer surprises, not bigger ones.</p>
+
+    <p class="t-label" style="left:1280px; top:256px;">Insight #3</p>
+    <p class="t-h2" style="left:1280px; top:300px; width:440px;">Support is product.</p>
+    <p class="t-body" style="left:1280px; top:560px; width:440px;">Half of "feature requests" in the inbox are discovery problems dressed as roadmap items.</p>
+
+    <p class="t-label t-dim" style="left:120px; top:960px;">April 29, 2026</p>
+    <p class="t-label t-dim" style="left:1300px; top:960px; width:500px; text-align:right;">Field Notes · Vol. III</p>
+  </section>
+
+  <!-- 2 数字：三张卡换布局 -->
+  <section data-auto-animate data-auto-animate-duration="1.2" data-hold="2.5">
+    <p class="t-label t-dim" data-auto-animate-delay="0.84" style="left:120px; top:96px;">By the numbers</p>
+    <p class="t-label t-dim" data-auto-animate-delay="0.84" style="left:1600px; top:96px; width:200px; text-align:right;">03</p>
+
+    <div data-id="c2" data-merge="panel" class="s-surface" style="left:120px; top:200px; width:1040px; height:680px;"></div>
+    <div data-id="c1" data-merge="panel" class="s-accent" style="left:1200px; top:200px; width:600px; height:320px;"></div>
+    <div data-id="c3" data-merge="panel" class="s-accent-soft" style="left:1200px; top:560px; width:600px; height:320px;"></div>
+
+    <p class="t-body" data-auto-animate-delay="0.92" style="left:160px; top:248px; width:640px;">of new accounts open the third email, up from 41% last quarter.</p>
+    <p class="t-metric t-on-surface" data-auto-animate-delay="1.0" style="left:160px; top:560px;">68%</p>
+
+    <p class="t-display" data-auto-animate-delay="1.0" style="left:1240px; top:232px;">28</p>
+    <p class="t-body" data-auto-animate-delay="1.08" style="left:1240px; top:420px; width:520px;">customer interviews</p>
+
+    <p class="t-display" data-auto-animate-delay="1.0" style="left:1240px; top:592px;">9</p>
+    <p class="t-body" data-auto-animate-delay="1.08" style="left:1240px; top:780px; width:520px;">teams shadowed a week</p>
+
+    <p class="t-label t-dim" style="left:120px; top:960px;">April 29, 2026</p>
+    <p class="t-label t-dim" style="left:1300px; top:960px; width:500px; text-align:right;">Field Notes · Vol. III</p>
+  </section>
+
+  <!-- 3 留存：三块面板合成一张图表卡 -->
+  <section data-st="merge" data-st-merge="panel" data-hold="3">
+    <p class="t-label t-dim" style="left:120px; top:96px;">Retention, by cohort</p>
+    <p class="t-label t-dim" style="left:1600px; top:96px; width:200px; text-align:right;">04</p>
+
+    <p class="t-h1" style="left:120px; top:200px;">The curve bends</p>
+    <p class="t-h1" style="left:120px; top:280px;">around day three.</p>
+    <p class="t-body" style="left:120px; top:400px; width:600px;">Cohorts that got a written welcome and a human reply within 24 hours keep almost twice as many accounts at day 90.</p>
+
+    <div data-merge="panel" class="s-surface-2" style="left:840px; top:200px; width:960px; height:680px;"></div>
+    <p class="t-label t-dim" data-enter-delay="1.0" style="left:920px; top:256px;">Accounts still active at day 90</p>
+
+    <p class="t-label" data-enter-delay="1.1" style="left:920px; top:352px;">Templated welcome</p>
+    <div class="s-accent-soft" data-enter="grow-right" data-enter-delay="1.2" style="left:920px; top:392px; width:328px; height:80px;"></div>
+    <p class="t-h2" data-enter-delay="1.5" style="left:1272px; top:400px;">41%</p>
+
+    <p class="t-label" data-enter-delay="1.1" style="left:920px; top:536px;">Written welcome</p>
+    <div class="s-surface" data-enter="grow-right" data-enter-delay="1.3" style="left:920px; top:576px; width:464px; height:80px;"></div>
+    <p class="t-h2" data-enter-delay="1.6" style="left:1408px; top:584px;">58%</p>
+
+    <p class="t-label" data-enter-delay="1.1" style="left:920px; top:720px;">Written welcome + human reply</p>
+    <div class="s-accent" data-enter="grow-right" data-enter-delay="1.4" style="left:920px; top:760px; width:576px; height:80px;"></div>
+    <p class="t-h2" data-enter-delay="1.7" style="left:1520px; top:768px;">72%</p>
+
+    <p class="t-label t-dim" style="left:120px; top:960px;">April 29, 2026</p>
+    <p class="t-label t-dim" style="left:1300px; top:960px; width:500px; text-align:right;">Field Notes · Vol. III</p>
+  </section>
+
+</div>
+</div>
+<script src="../../node_modules/reveal.js/dist/reveal.js"></script>
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../runtime/engine.js"></script>
+</body>
+</html>

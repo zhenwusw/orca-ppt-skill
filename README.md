@@ -37,13 +37,26 @@ node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 | 路径 | 内容 |
 | --- | --- |
 | `SKILL.md` | skill 入口，Agent 的工作流程 |
-| `references/` | 视觉规范、转场手法、故事模式、剪辑软件转场名对照 |
-| `runtime/` | 设计变量（`tokens.css`）和转场引擎（`engine.js`） |
+| `references/` | 视觉规范、主题、转场手法、故事模式、剪辑软件转场名对照 |
+| `runtime/` | 设计变量（`tokens.css`）、主题（`themes/`）和转场引擎（`engine.js`） |
 | `scripts/capture.mjs` | 逐帧录制成视频 |
 | `templates/starter.html` | 新演示稿的起始文件 |
 | `examples/story-circle/` | 故事模式示例 |
+| `examples/editorial-forest/` | 主题示例：Editorial Forest 配色，整页 ↔ 卡片转场 |
+| `examples/soft-editorial/` | 主题示例：Soft Editorial 配色，卡片换布局 + 多合一转场 |
 
 示例照片由 AI 生成。
+
+## 与 frontend-slides 的关系
+
+[frontend-slides](https://github.com/zarazhangrui/frontend-slides) 关注的是**整体视觉风格**和**单页内的动画**：
+挑选风格预设，页面进入视口时元素依次淡入、上滑。翻页本身只是切换页面。
+
+本项目补的是另一半：**跨页之间的转场连贯性**。它根据前后两页的内容关系选择手法，让上一页的元素
+以看得见的连续运动变成下一页的元素，而不是一页消失、一页出现。
+
+两者定位互补，但实现方式不同：frontend-slides 输出零依赖的单文件 HTML，
+本项目依赖 reveal.js + GSAP 和统一的设计变量，目前不能在同一份稿子里直接混用。
 
 ## License
 

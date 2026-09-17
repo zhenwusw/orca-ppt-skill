@@ -4,7 +4,7 @@
 //   共享元素 / 形态变换 → reveal.js auto-animate（两页都写 data-auto-animate，元素用 data-id 配对），
 //                         本文件补上旧元素退场和新元素入场（autoAnimateExtras）
 //   目标页写 data-st="…" 的 → 本文件的 builders：
-//     汇报稿：carry（元素交接）/ split（一变多）/ match-move（匹配放大）/ mask（遮挡剪辑）
+//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ mask（遮挡剪辑）
 //     故事稿：zoom-match（推近匹配）/ iris（遮挡变形）
 //     旧版：speed-match / match-cut，规范已不再使用，只为兼容旧示例保留
 //
@@ -356,17 +356,36 @@
         console.error(`[orca-transition-skill] data-id="${el.dataset.id}" 前一页是 <${twin.tagName.toLowerCase()}>，这一页是 <${el.tagName.toLowerCase()}>，标签不同配不上`);
       }
     }
-    const ghost = snapshot(prev, (el) => !currIds.has(el.dataset.id));
+    // 前后两页一模一样的元素（页眉、页脚）原地不动：不克隆出来淡出，新页的也不重新入场
+    const sameIn = (sec) => new Set([...sec.children].filter((el) => !el.dataset.id).map(signature));
+    const prevSame = sameIn(prev);
+    const currSame = sameIn(section);
+    const ghost = snapshot(prev, (el) => !currIds.has(el.dataset.id) && !(!el.dataset.id && currSame.has(signature(el))));
     // 放在最上面：放在底下会被正在长大的共享形状盖住，第一帧就看不见了
     section.append(ghost);
     const tl = timeline();
     if (ghost.children.length) {
       tl.fromTo(ghost.children, { autoAlpha: 1, y: 0 }, { autoAlpha: 0, y: -16, duration: 0.35, ease: "power1.in" }, 0);
     }
-    const incoming = [...section.children].filter((el) => !prevIds.has(el.dataset.id) && !el.classList.contains("st-layer"));
+    const incoming = [...section.children].filter((el) =>
+      !prevIds.has(el.dataset.id) && !el.classList.contains("st-layer") && !(!el.dataset.id && prevSame.has(signature(el))));
     for (const el of incoming) enterTween(tl, el, +(el.dataset.autoAnimateDelay ?? 0.6));
     return tl;
   }
+
+  // 形状元素的位置、尺寸、底色、圆角（圆角换算成像素，不超过短边一半），一变多 / 多合一用来插值
+  const radiusPx = (cs, w, h) => {
+    const r = cs.borderTopLeftRadius;
+    return r.endsWith("%") ? (parseFloat(r) / 100) * Math.min(w, h) : parseFloat(r) || 0;
+  };
+  const box = (el) => {
+    const cs = getComputedStyle(el);
+    return {
+      left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight,
+      backgroundColor: cs.backgroundColor,
+      borderRadius: Math.min(radiusPx(cs, el.offsetWidth, el.offsetHeight), Math.min(el.offsetWidth, el.offsetHeight) / 2),
+    };
+  };
 
   // 一变多：上一页一个元素，下一页多个元素写同一个 data-split。
   // 第一帧，多个新元素叠在旧元素的位置、用旧元素的颜色和圆角，看起来还是那一个；
@@ -383,18 +402,6 @@
     const d = +section.dataset.stDuration || 1.2;
     const move = d * 0.75;
     const stagger = Math.min(0.08, (d - move) / targets.length);
-    const radiusPx = (cs, w, h) => {
-      const r = cs.borderTopLeftRadius;
-      return r.endsWith("%") ? (parseFloat(r) / 100) * Math.min(w, h) : parseFloat(r) || 0;
-    };
-    const box = (el) => {
-      const cs = getComputedStyle(el);
-      return {
-        left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight,
-        backgroundColor: cs.backgroundColor,
-        borderRadius: Math.min(radiusPx(cs, el.offsetWidth, el.offsetHeight), Math.min(el.offsetWidth, el.offsetHeight) / 2),
-      };
-    };
     const from = box(src);
     const ends = targets.map(box);
 
@@ -419,6 +426,48 @@
     newRest.forEach((el, i) => enterTween(tl, el, +(el.dataset.enterDelay ?? restAt + i * 0.04)));
     tl.set(sameNew, { autoAlpha: 1 }, d);
     tl.set(sameOld, { autoAlpha: 0 }, d);
+    return tl;
+  };
+
+  // 多合一：一变多反过来。上一页多个元素、这一页一个元素写同一个 data-merge。
+  // 上一页的几个形状（ghost 里的克隆）依次飞到新元素的位置，变成它的尺寸、颜色、圆角，叠成一个；
+  // 最后一个落位时换成真正的新元素。其他新元素在合拢后期入场。
+  builders.merge = (section, ghost, enter) => {
+    const key = section.dataset.stMerge;
+    const sel = `[data-merge="${key}"]`;
+    const srcs = [...ghost.querySelectorAll(sel)];
+    const target = enter.querySelector(sel);
+    if (srcs.length < 2 || !target || enter.querySelectorAll(sel).length > 1) {
+      console.error(`[orca-transition-skill] merge 需要上一页至少两个 ${sel}，这一页恰好一个（现在是 ${srcs.length} 和 ${enter.querySelectorAll(sel).length}）`);
+      return timeline();
+    }
+    const d = +section.dataset.stDuration || 1.2;
+    const move = d * 0.75;
+    const stagger = Math.min(0.08, (d - move) / srcs.length);
+    const to = box(target);
+    const landed = (srcs.length - 1) * stagger + move;
+
+    const newSigs = new Set([...enter.children].map(signature));
+    const oldSigs = new Set([...ghost.children].map(signature));
+    const oldRest = [...ghost.children].filter((el) => !srcs.includes(el) && !newSigs.has(signature(el)));
+    const sameOld = [...ghost.children].filter((el) => !srcs.includes(el) && newSigs.has(signature(el)));
+    const newRest = [...enter.children].filter((el) => el !== target && !oldSigs.has(signature(el)));
+    const sameNew = [...enter.children].filter((el) => el !== target && oldSigs.has(signature(el)));
+
+    gsap.set(target, { autoAlpha: 0 });
+    if (sameNew.length) gsap.set(sameNew, { autoAlpha: 0 });
+
+    const tl = timeline();
+    tl.to(oldRest, { autoAlpha: 0, y: -16, duration: 0.35, ease: "power1.in" }, 0);
+    srcs.forEach((el, i) => {
+      tl.to(el, { ...to, borderRadius: `${to.borderRadius}px`, duration: move, ease: "power3.inOut" }, i * stagger);
+    });
+    tl.set(target, { autoAlpha: 1 }, landed);
+    tl.set(srcs, { autoAlpha: 0 }, landed);
+    const restAt = landed * 0.8;
+    newRest.forEach((el, i) => enterTween(tl, el, +(el.dataset.enterDelay ?? restAt + i * 0.04)));
+    tl.set(sameNew, { autoAlpha: 1 }, Math.max(d, landed));
+    tl.set(sameOld, { autoAlpha: 0 }, Math.max(d, landed));
     return tl;
   };
 

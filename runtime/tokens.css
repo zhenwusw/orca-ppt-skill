@@ -21,6 +21,7 @@
   --surface-2: #26262f;
   --text: #f5f5f7;
   --text-dim: #8e8e98;
+  --text-on-surface: #f5f5f7;  /* .s-surface 上的文字 */
   --accent: #ff7a1a;
   --accent-soft: #3a2415;
 
@@ -48,6 +49,7 @@ html, body, .reveal { background: var(--bg); }
 .t-body    { font-size: var(--type-body); line-height: 1.4; color: var(--text-dim); }
 .t-accent  { color: var(--accent); }
 .t-dim     { color: var(--text-dim); }
+.t-on-surface { color: var(--text-on-surface); }
 
 /* 形状 */
 .s-surface { background: var(--surface); border-radius: var(--radius-l); }
