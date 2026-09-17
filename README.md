@@ -40,7 +40,7 @@ node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 | `references/` | 视觉规范、主题、转场手法、故事模式、剪辑软件转场名对照 |
 | `runtime/` | 设计变量（`tokens.css`）、主题（`themes/`）和转场引擎（`engine.js`） |
 | `scripts/capture.mjs` | 逐帧录制成视频 |
-| `templates/starter.html` | 新演示稿的起始文件 |
+| `templates/` | 起始文件：汇报稿 `starter.html`，故事稿 `story-starter.html` |
 | `examples/story-circle/` | 故事模式示例 |
 | `examples/editorial-forest/` | 主题示例：Editorial Forest 配色，整页 ↔ 卡片转场 |
 | `examples/soft-editorial/` | 主题示例：Soft Editorial 配色，卡片换布局 + 多合一转场 |

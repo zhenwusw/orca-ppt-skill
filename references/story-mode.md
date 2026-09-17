@@ -21,7 +21,7 @@
 <section data-guide="dial" data-hold="2">
   <img class="st-photo" src="photos/photo-01.png" width="1536" height="1024"
        data-anchors="dial:642,522,122">
-  <p class="t-body" style="left:120px; top:840px;">No.01</p>
+  <p class="t-body" style="left:120px; top:820px;">No.01</p>
   <p class="t-h1" style="left:120px; top:880px;">转盘电话</p>
 </section>
 ```
@@ -37,7 +37,7 @@
 - **`data-guide="锚点名"`**：这一页的引导框（强调色描边）常驻在哪个锚点上。
   故事稿的每一页都要写，引导框就是观众视线的钉子。转场页的 `data-st-to` 要等于本页 `data-guide`，
   `data-st-from` 要等于上一页 `data-guide`，不一致会警告（引导框会跳）。
-- 文字只放在左下角：编号 `.t-body` `left:120 top:840`，名称 `.t-h1` `left:120 top:880`。
+- 文字只放在左下角：编号 `.t-body` `left:120 top:820`，名称 `.t-h1` `left:120 top:880`（编号行框高 50，和名称之间留 10）。
   运行时会自动在底部加暗色渐变，保证文字可读。不要放更多文字。
 
 ## 两种手法
@@ -76,7 +76,7 @@
 
 ## 规则
 
-- 故事稿里**不用**汇报稿那五种手法，也不用 `.s-*` 形状类。
+- 故事稿里**不用**汇报稿的手法（`transitions.md` 手法表里那些），也不用 `.s-*` 形状类。
 - **同一个故事里，推近匹配至少占一半的翻页。** 它是故事模式最有说服力的手法。
 - 连续两次遮挡变形会显得廉价，中间至少隔一次推近匹配。
 - 照片和锚点坐标由用户提供，**不要自己猜坐标**。没有可用的锚点就告诉用户缺什么。

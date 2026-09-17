@@ -58,6 +58,13 @@ html, body, .reveal { background: var(--bg); }
 .s-accent-soft { background: var(--accent-soft); border-radius: var(--radius-m); }
 .s-dot     { background: var(--accent); border-radius: 50%; }
 
+/* 折线：写在 <svg> 里的 path / polyline 上。svg 本身绝对定位，viewBox 和宽高一致（单位就是像素） */
+.l-accent, .l-surface, .l-text, .l-dim { fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.l-accent  { stroke: var(--accent); }
+.l-surface { stroke: var(--surface); }
+.l-text    { stroke: var(--text); }
+.l-dim     { stroke: var(--text-dim); stroke-width: 2; }
+
 /* 遮挡剪辑用的色块，由 engine.js 创建 */
 .st-mask { position: absolute; left: 0; top: 0; width: var(--canvas-w); height: var(--canvas-h); background: var(--accent); z-index: 10; }
 

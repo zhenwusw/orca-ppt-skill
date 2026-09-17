@@ -4,7 +4,7 @@
 //   共享元素 / 形态变换 → reveal.js auto-animate（两页都写 data-auto-animate，元素用 data-id 配对），
 //                         本文件补上旧元素退场和新元素入场（autoAnimateExtras）
 //   目标页写 data-st="…" 的 → 本文件的 builders：
-//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ mask（遮挡剪辑）
+//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ zoom-through（整页推近）/ mask（遮挡剪辑）
 //     故事稿：zoom-match（推近匹配）/ iris（遮挡变形）
 //     旧版：speed-match / match-cut，规范已不再使用，只为兼容旧示例保留
 //
@@ -114,19 +114,26 @@
     }
   }
 
+  // 上一页的内容：data-st 页包在 .st-enter 里
+  const contentOf = (sec) => sec.querySelector(":scope > .st-enter") ?? sec;
+  const isRuntime = (el) => el.matches(".st-ghost, .st-ghost-el, .st-mask, .st-enter, .st-guide");
+
+  function ghostClone(child) {
+    const clone = child.cloneNode(true);
+    // 去掉 reveal 配对用的标记，避免克隆体被 auto-animate 当成共享元素
+    for (const el of [clone, ...clone.querySelectorAll("*")]) {
+      el.removeAttribute("data-id");
+      el.removeAttribute("data-auto-animate-target");
+      el.removeAttribute("id");
+    }
+    return clone;
+  }
+
   function snapshot(prev, keep = () => true) {
     const ghost = layer("st-ghost");
-    const source = prev.querySelector(":scope > .st-enter") ?? prev;
-    for (const child of source.children) {
-      if (child.matches(".st-ghost, .st-mask, .st-enter, .st-guide") || !keep(child)) continue;
-      const clone = child.cloneNode(true);
-      // 去掉 reveal 配对用的标记，避免克隆体被 auto-animate 当成共享元素
-      for (const el of [clone, ...clone.querySelectorAll("*")]) {
-        el.removeAttribute("data-id");
-        el.removeAttribute("data-auto-animate-target");
-        el.removeAttribute("id");
-      }
-      ghost.append(clone);
+    for (const child of contentOf(prev).children) {
+      if (isRuntime(child) || !keep(child)) continue;
+      ghost.append(ghostClone(child));
     }
     return ghost;
   }
@@ -324,6 +331,66 @@
       .to(newRest, { autoAlpha: 1, y: 0, duration: half, ease: "power2.out", stagger: 0.04 }, half + 0.1);
   };
 
+  // 整页推近（汇报稿版交叉缩放）：把画布当成一张照片，旧页整层以 data-zoom="from" 元素为中心加速推近，
+  // 推到它占满大半屏的那一帧换成新页；新页以 data-zoom="to" 元素（不写就是画面中心）为中心、同样的倍数减速拉回。
+  // 两段都在对数尺度上插值缩放倍数、曲线同阶，切点两边速度相等。镜头不会让画布边缘露出来。
+  builders["zoom-through"] = (section, ghost, enter) => {
+    const d = +section.dataset.stDuration || 1.4;
+    const half = d / 2;
+    const fromKey = section.dataset.stFrom;
+    const toKey = section.dataset.stTo;
+    const a = fromKey && ghost.querySelector(`[data-zoom="${fromKey}"]`);
+    if (!a) {
+      console.error(`[orca-transition-skill] zoom-through 需要 data-st-from，并且上一页有 data-zoom="${fromKey}" 的元素`);
+      return timeline();
+    }
+    const b = toKey ? enter.querySelector(`[data-zoom="${toKey}"]`) : null;
+    if (toKey && !b) console.error(`[orca-transition-skill] zoom-through 这一页找不到 data-zoom="${toKey}"，改用画面中心`);
+    // 推近倍数：让 from 元素占满画面约 75%（按 16:9 折算），限制在 2 到 8 倍
+    const fit = (el) => 0.75 * W / Math.max(el.offsetWidth, el.offsetHeight * W / H);
+    const K = +section.dataset.stScale || Math.min(8, Math.max(2, fit(a)));
+    if (fit(a) < 2 && !section.dataset.stScale) {
+      console.warn(`[orca-transition-skill] zoom-through 的 "${fromKey}" 太大，推近不到 2 倍，推进感会弱。换一个更小的元素`);
+    }
+    const [ax, ay] = center(a);
+    const [bx, by] = b ? center(b) : [W / 2, H / 2];
+
+    const clampCam = ({ cx, cy, k }) => ({
+      k,
+      cx: Math.min(W - W / (2 * k), Math.max(W / (2 * k), cx)),
+      cy: Math.min(H - H / (2 * k), Math.max(H / (2 * k), cy)),
+    });
+    const lerp = (x, y, q) => x + (y - x) * q;
+    const camAt = (t) => {
+      if (t < half) {
+        const q = gsap.parseEase("power2.in")(t / half);
+        return clampCam({ k: Math.exp(Math.log(K) * q), cx: lerp(W / 2, ax, q), cy: lerp(H / 2, ay, q) });
+      }
+      const q = gsap.parseEase("power2.out")((t - half) / half);
+      return clampCam({ k: Math.exp(Math.log(K) * (1 - q)), cx: lerp(bx, W / 2, q), cy: lerp(by, H / 2, q) });
+    };
+    const apply = (el, { cx, cy, k }) =>
+      gsap.set(el, { x: W / 2 - cx * k, y: H / 2 - cy * k, scale: k, transformOrigin: "0 0" });
+
+    const p = { t: 0 };
+    const render = () => {
+      const layerNow = p.t < half ? ghost : enter;
+      const cam = camAt(p.t);
+      apply(layerNow, cam);
+      // 运动模糊：画面边缘（离中心半屏）一帧曝光时间里移动的距离
+      const dt = 1 / 240;
+      const k2 = camAt(Math.min(d, p.t + dt)).k;
+      const edgeSpeed = (Math.abs(k2 - cam.k) / dt / cam.k) * (W / 2);
+      isoBlur([layerNow], Math.min(8, (edgeSpeed * SHUTTER) / 4), cam.k);
+    };
+    gsap.set(enter, { autoAlpha: 0 });
+    render();
+    return timeline()
+      .to(p, { t: d, duration: d, ease: "none", onUpdate: render }, 0)
+      .set(ghost, { autoAlpha: 0 }, half)
+      .set(enter, { autoAlpha: 1 }, half);
+  };
+
   // 新元素的入场方式（data-enter）。默认上浮淡入；图表用 grow-up / grow-right 从基线长出来
   const ENTER = {
     rise: { from: { autoAlpha: 0, y: 24 }, to: { autoAlpha: 1, y: 0, duration: 0.5, ease: "power2.out" } },
@@ -331,11 +398,29 @@
     "grow-right": { from: { scaleX: 0, transformOrigin: "0% 50%" }, to: { scaleX: 1, duration: 0.6, ease: "power3.out" } },
     pop: { from: { autoAlpha: 0, scale: 0.6 }, to: { autoAlpha: 1, scale: 1, duration: 0.5, ease: "back.out(1.6)" } },
   };
+  // draw：<svg> 里的线（path / polyline / line）按顺序从起点画到终点，折线图用
+  const DRAW = { duration: 0.9, stagger: 0.15 };
   function enterTween(tl, el, at) {
     const kind = el.dataset.enter || "rise";
+    if (kind === "draw") {
+      const lines = [...el.querySelectorAll("path, polyline, line")];
+      if (el.tagName.toLowerCase() !== "svg" || !lines.length) {
+        console.error(`[orca-transition-skill] data-enter="draw" 只能写在里面有 path / polyline / line 的 <svg> 上`);
+        return;
+      }
+      lines.forEach((ln, i) => {
+        const len = ln.getTotalLength();
+        const start = at + i * DRAW.stagger;
+        // 圆头线帽在虚线长度为 0 时仍会画出一个点，所以每条线轮到它画时才显示
+        gsap.set(ln, { strokeDasharray: len, strokeDashoffset: len, autoAlpha: 0 });
+        tl.set(ln, { autoAlpha: 1 }, start);
+        tl.to(ln, { strokeDashoffset: 0, duration: DRAW.duration, ease: "power2.inOut" }, start);
+      });
+      return;
+    }
     let spec = ENTER[kind];
     if (!spec) {
-      console.error(`[orca-transition-skill] 不认识的 data-enter="${kind}"，可选：${Object.keys(ENTER).join(" / ")}`);
+      console.error(`[orca-transition-skill] 不认识的 data-enter="${kind}"，可选：${[...Object.keys(ENTER), "draw"].join(" / ")}`);
       spec = ENTER.rise;
     }
     gsap.set(el, spec.from);
@@ -357,18 +442,35 @@
       }
     }
     // 前后两页一模一样的元素（页眉、页脚）原地不动：不克隆出来淡出，新页的也不重新入场
-    const sameIn = (sec) => new Set([...sec.children].filter((el) => !el.dataset.id).map(signature));
-    const prevSame = sameIn(prev);
+    const source = contentOf(prev);
+    const sameIn = (parent) => new Set([...parent.children].filter((el) => !el.dataset.id).map(signature));
+    const prevSame = sameIn(source);
     const currSame = sameIn(section);
-    const ghost = snapshot(prev, (el) => !currIds.has(el.dataset.id) && !(!el.dataset.id && currSame.has(signature(el))));
-    // 放在最上面：放在底下会被正在长大的共享形状盖住，第一帧就看不见了
-    section.append(ghost);
-    const tl = timeline();
-    if (ghost.children.length) {
-      tl.fromTo(ghost.children, { autoAlpha: 1, y: 0 }, { autoAlpha: 0, y: -16, duration: 0.35, ease: "power1.in" }, 0);
+
+    // 旧页没配对的元素克隆出来淡出。克隆不整层放在最上面或最下面，而是按旧页里的上下关系插进新页：
+    // 插在「旧页里排在它前面、最近的那个配对元素」在新页里的孪生元素后面。
+    // 这样圆里的字仍在长大的圆上面，而垫在底下的大面板淡出时不会盖住它上面的共享元素。
+    const ghosts = [];
+    let cursor = null;
+    for (const child of source.children) {
+      if (isRuntime(child)) continue;
+      const id = child.dataset.id;
+      if (id && currIds.has(id)) {
+        cursor = section.querySelector(`:scope > [data-id="${id}"]`) ?? cursor;
+        continue;
+      }
+      if (!id && currSame.has(signature(child))) continue;
+      const clone = ghostClone(child);
+      clone.classList.add("st-ghost-el");
+      if (cursor) cursor.after(clone);
+      else section.prepend(clone);
+      cursor = clone;
+      ghosts.push(clone);
     }
+    const tl = timeline();
+    tl.fromTo(ghosts, { autoAlpha: 1, y: 0 }, { autoAlpha: 0, y: -16, duration: 0.35, ease: "power1.in" }, 0);
     const incoming = [...section.children].filter((el) =>
-      !prevIds.has(el.dataset.id) && !el.classList.contains("st-layer") && !(!el.dataset.id && prevSame.has(signature(el))));
+      !prevIds.has(el.dataset.id) && !el.matches(".st-layer, .st-ghost-el") && !(!el.dataset.id && prevSame.has(signature(el))));
     for (const el of incoming) enterTween(tl, el, +(el.dataset.autoAnimateDelay ?? 0.6));
     return tl;
   }
@@ -411,6 +513,18 @@
     const sameOld = [...ghost.children].filter((el) => el !== src && newSigs.has(signature(el)));
     const newRest = [...enter.children].filter((el) => !targets.includes(el) && !oldSigs.has(signature(el)));
     const sameNew = [...enter.children].filter((el) => !targets.includes(el) && oldSigs.has(signature(el)));
+
+    // 目标卡片一开始叠在源元素的位置，而且在 enter 层（ghost 层之上）。
+    // 旧页里叠在源元素上面的内容（圆里的字、面板上的柱子）挪到 enter 之上的一层，否则第一帧就被卡片盖掉
+    const overlaps = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+    const srcRect = rectOf(src);
+    const above = [...ghost.children].slice([...ghost.children].indexOf(src) + 1)
+      .filter((el) => oldRest.includes(el) && overlaps(rectOf(el), srcRect));
+    if (above.length) {
+      const top = layer("st-ghost");
+      top.append(...above);
+      section.append(top);
+    }
 
     gsap.set(src, { autoAlpha: 0 });
     if (sameNew.length) gsap.set(sameNew, { autoAlpha: 0 });
@@ -846,7 +960,7 @@
     // 先跑到终点再销毁，避免中途翻页时元素停在隐藏状态
     current?.progress(1).kill();
     current = null;
-    for (const el of document.querySelectorAll(".st-ghost, .st-mask")) el.remove();
+    for (const el of document.querySelectorAll(".st-ghost, .st-ghost-el, .st-mask")) el.remove();
     for (const el of document.querySelectorAll(".st-enter")) gsap.set(el, { clearProps: "all" });
     clearBlur();
   }

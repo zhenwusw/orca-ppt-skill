@@ -23,40 +23,51 @@ const framesDir = mkdtempSync(path.join(tmpdir(), "orca-transition-capture-"));
 let n = 0;
 const framePath = () => path.join(framesDir, String(n++).padStart(5, "0") + ".png");
 
-// 用系统里装好的 Chrome，不下载浏览器
-const browser = await chromium.launch({ channel: "chrome" });
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+// seek 后直接截图：截图本身会触发样式计算和绘制。实测在 seek 后多等两帧，录出的每一帧逐位不变
+const seek = (ms) => page.evaluate((t) => window.__capture.seek(t), ms);
+
+let browser;
+let page;
 const problems = [];
-page.on("console", (m) => ["error", "warning"].includes(m.type()) && problems.push(`[${m.type()}] ${m.text()}`));
-page.on("pageerror", (e) => problems.push(`[pageerror] ${e.message}`));
+try {
+  // 用系统里装好的 Chrome，不下载浏览器
+  browser = await chromium.launch({ channel: "chrome" });
+  page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+  page.on("console", (m) => ["error", "warning"].includes(m.type()) && problems.push(`[${m.type()}] ${m.text()}`));
+  page.on("pageerror", (e) => problems.push(`[pageerror] ${e.message}`));
 
-await page.goto(pathToFileURL(path.resolve(deck)).href + "?capture#/0");
-await page.waitForFunction(() => window.Reveal?.isReady?.() && window.__capture);
-await page.evaluate(() => document.fonts.ready);
+  await page.goto(pathToFileURL(path.resolve(deck)).href + "?capture#/0");
+  await page.waitForFunction(() => window.Reveal?.isReady?.() && window.__capture);
+  await page.evaluate(() => document.fonts.ready);
 
-const total = await page.evaluate(() => window.__capture.count());
-for (let i = 0; i < total; i++) {
-  const { transition, hold } = await page.evaluate((idx) => window.__capture.go(idx), i);
-  const frames = Math.round((transition / 1000) * FPS);
-  const firstFrame = n;
-  for (let f = 0; f < frames; f++) {
-    await page.evaluate((ms) => window.__capture.seek(ms), (f / FPS) * 1000);
-    await page.screenshot({ path: framePath() });
+  const total = await page.evaluate(() => window.__capture.count());
+  for (let i = 0; i < total; i++) {
+    const { transition, hold } = await page.evaluate((idx) => window.__capture.go(idx), i);
+    const frames = Math.round((transition / 1000) * FPS);
+    const firstFrame = n;
+    for (let f = 0; f < frames; f++) {
+      await seek((f / FPS) * 1000);
+      await page.screenshot({ path: framePath() });
+    }
+    await seek(transition);
+    const still = framePath();
+    await page.screenshot({ path: still });
+    for (let h = 1; h < Math.round((hold / 1000) * FPS); h++) copyFileSync(still, framePath());
+    const range = frames ? `，转场帧 ${firstFrame}–${firstFrame + frames - 1}` : "";
+    console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}`);
   }
-  await page.evaluate((ms) => window.__capture.seek(ms), transition);
-  const still = framePath();
-  await page.screenshot({ path: still });
-  for (let h = 1; h < Math.round((hold / 1000) * FPS); h++) copyFileSync(still, framePath());
-  const range = frames ? `，转场帧 ${firstFrame}–${firstFrame + frames - 1}` : "";
-  console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}`);
-}
-await browser.close();
+  await browser.close();
+  browser = null;
 
-mkdirSync(path.dirname(out), { recursive: true });
-execFileSync("ffmpeg", [
-  "-v", "error", "-y", "-framerate", String(FPS), "-i", path.join(framesDir, "%05d.png"),
-  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "16", out,
-]);
-rmSync(framesDir, { recursive: true, force: true });
+  mkdirSync(path.dirname(out), { recursive: true });
+  execFileSync("ffmpeg", [
+    "-v", "error", "-y", "-framerate", String(FPS), "-i", path.join(framesDir, "%05d.png"),
+    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "16", out,
+  ]);
+} finally {
+  // 出错也要删掉临时帧目录（几百张 1080p 截图），也要关掉浏览器
+  await browser?.close().catch(() => {});
+  rmSync(framesDir, { recursive: true, force: true });
+}
 if (problems.length) console.log("\n页面报告的问题：\n" + problems.join("\n"));
 console.log(`\n${n} 帧 → ${out}`);
