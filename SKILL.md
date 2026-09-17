@@ -17,6 +17,9 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 **用户要某种配色、字体风格时**（「米色纸面加墨绿」「像杂志」「换成浅色」），
 读 `references/themes.md`：先看有没有现成主题，没有就按规范新建一个。不要在稿子里改颜色。
 
+**页面里要有场景内部的 MG 动画时**（成片格子亮起、卡片弹出、拼字、数字滚动，产品概念片），
+用 orca-motion-skill 写场景，本 skill 只管场景之间的转场。场景怎么放进页面见那个 skill 的 `references/integration.md`。
+
 **用户用剪辑软件里的转场名提需求时**（推、交叉缩放、圆形划像、溶解、百叶窗……），
 先读 `references/premiere-mapping.md`，按他想要的感觉选手法，不要照着复刻效果。
 

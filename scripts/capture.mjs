@@ -37,24 +37,35 @@ try {
   page.on("pageerror", (e) => problems.push(`[pageerror] ${e.message}`));
 
   await page.goto(pathToFileURL(path.resolve(deck)).href + "?capture#/0");
-  await page.waitForFunction(() => window.Reveal?.isReady?.() && window.__capture);
+  // 演示稿等 Reveal 就绪；orca-motion-skill 的单独预览页没有 Reveal，只等 __capture
+  await page.waitForFunction(() => window.__capture && (!window.Reveal || window.Reveal.isReady?.()));
   await page.evaluate(() => document.fonts.ready);
 
   const total = await page.evaluate(() => window.__capture.count());
   for (let i = 0; i < total; i++) {
-    const { transition, hold } = await page.evaluate((idx) => window.__capture.go(idx), i);
+    const { transition, hold, scene } = await page.evaluate((idx) => window.__capture.go(idx), i);
     const frames = Math.round((transition / 1000) * FPS);
     const firstFrame = n;
     for (let f = 0; f < frames; f++) {
       await seek((f / FPS) * 1000);
       await page.screenshot({ path: framePath() });
     }
-    await seek(transition);
-    const still = framePath();
-    await page.screenshot({ path: still });
-    for (let h = 1; h < Math.round((hold / 1000) * FPS); h++) copyFileSync(still, framePath());
+    const holdFrames = Math.max(1, Math.round((hold / 1000) * FPS));
+    if (scene) {
+      // 页面里有场景动画（orca-motion-skill）：停留期间也逐帧 seek
+      for (let h = 0; h < holdFrames; h++) {
+        await seek(transition + (h / FPS) * 1000);
+        await page.screenshot({ path: framePath() });
+      }
+    } else {
+      await seek(transition);
+      const still = framePath();
+      await page.screenshot({ path: still });
+      for (let h = 1; h < holdFrames; h++) copyFileSync(still, framePath());
+    }
     const range = frames ? `，转场帧 ${firstFrame}–${firstFrame + frames - 1}` : "";
-    console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}`);
+    const sceneNote = scene ? `，场景动画 ${(scene / 1000).toFixed(2)}s` : "";
+    console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}${sceneNote}`);
   }
   await browser.close();
   browser = null;

@@ -47,6 +47,11 @@ node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 
 示例照片由 AI 生成。
 
+## 与 orca-motion-skill 的关系
+
+[orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill) 做场景**内部**的 MG 动画（格子依次亮起、卡片弹出、拼字、数字滚动），
+本项目做场景**之间**的连贯。页面里放了 `.mo-scene` 时，`engine.js` 会在转场结束后播放场景，录制时逐帧录下来。
+
 ## 与 frontend-slides 的关系
 
 [frontend-slides](https://github.com/zarazhangrui/frontend-slides) 关注的是**整体视觉风格**和**单页内的动画**：

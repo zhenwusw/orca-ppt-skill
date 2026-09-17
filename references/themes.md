@@ -8,6 +8,7 @@
 | 主题 | 样子 | 来源 |
 | --- | --- | --- |
 | `editorial-forest.css` | 燕麦米色纸面，森林绿大面板，灰粉强调；Source Serif 4 + JetBrains Mono | frontend-slides bold-template-pack |
+| `clearing.css` | 群青底，白色半透明图形，黄色主角；Inter + JetBrains Mono | 一段 Remotion 日历产品动效（orca-motion-skill 示例） |
 | `soft-editorial.css` | 奶油纸面，粉 / 黄绿 / 桃三色大圆角卡片；Cormorant Garamond + Work Sans | frontend-slides bold-template-pack |
 
 ## 使用主题

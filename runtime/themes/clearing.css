@@ -1,0 +1,32 @@
+/* 主题：Clearing（取自一段 Remotion 日历产品动效：饱和群青底 + 白色半透明图形 + 一个黄色主角）
+ * 在 tokens.css 之后引入。规则见 references/themes.md。
+ *
+ * 变量映射：
+ *   --bg          群青底              --surface     浅一级的蓝（大面板）
+ *   --surface-2   再浅一级的蓝         --accent      黄（主角：空出来的时间）
+ *   --accent-soft 浅黄               --text / --text-dim  白 / 淡蓝白
+ *   --text-on-surface 白
+ *
+ * 可以互变的颜色：surface ↔ surface-2（同是蓝），accent ↔ accent-soft（同是黄）。蓝和黄之间不能互变。
+ * 黄色只给主角用：整条片子里它代表同一个东西，不要拿来装饰。
+ *
+ * 本主题没有新增类。场景里的图形类（.mo-*）由 orca-motion-skill 的 motion.css 提供，也只用这些变量。 */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap");
+
+:root {
+  --bg: #2d3de0;
+  --surface: #4453e8;
+  --surface-2: #6470ee;
+  --text: #ffffff;
+  --text-dim: #c4c9fa;
+  --accent: #ffd43b;
+  --accent-soft: #ffe68a;
+  --text-on-surface: #ffffff;
+
+  --radius-s: 6px;
+  --radius-m: 14px;
+  --radius-l: 32px;
+
+  --font: "Inter", -apple-system, "PingFang SC", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}

@@ -4,7 +4,7 @@
 //   共享元素 / 形态变换 → reveal.js auto-animate（两页都写 data-auto-animate，元素用 data-id 配对），
 //                         本文件补上旧元素退场和新元素入场（autoAnimateExtras）
 //   目标页写 data-st="…" 的 → 本文件的 builders：
-//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ zoom-through（整页推近）/ mask（遮挡剪辑）
+//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ zoom-through（整页推近）/ zoom-into（放大进元素内部）/ mask（遮挡剪辑）
 //     故事稿：zoom-match（推近匹配）/ iris（遮挡变形）
 //     旧版：speed-match / match-cut，规范已不再使用，只为兼容旧示例保留
 //
@@ -389,6 +389,74 @@
       .to(p, { t: d, duration: d, ease: "none", onUpdate: render }, 0)
       .set(ghost, { autoAlpha: 0 }, half)
       .set(enter, { autoAlpha: 1 }, half);
+  };
+
+  // 放大进元素内部（语义缩放）。
+  //   in ：旧页的镜头推向 data-zoom="from" 元素；新页整页缩在这个元素的位置上，跟着镜头一起长大，
+  //        镜头推到头时新页正好铺满画面。看起来是「这个格子里面就是下一页」。
+  //   out：反过来。新页从推近到 data-zoom="to" 元素的状态拉回，旧页整页缩进这个元素里消失。
+  // 元素位置按屏幕上的实际位置算（包括场景镜头的变换），元素可以在 .mo-scene 里。
+  builders["zoom-into"] = (section, ghost, enter) => {
+    const d = +section.dataset.stDuration || 1.8;
+    const dir = section.dataset.stDirection || "in";
+    const key = dir === "in" ? section.dataset.stFrom : section.dataset.stTo;
+    const outer = dir === "in" ? ghost : enter;   // 被镜头推拉的那一页
+    const inner = dir === "in" ? enter : ghost;   // 缩在元素里的那一页
+    const anchor = key && outer.querySelector(`[data-zoom="${key}"]`);
+    if (!anchor) {
+      console.error(`[orca-transition-skill] zoom-into（${dir}）找不到 data-zoom="${key}"：in 用 data-st-from 指上一页的元素，out 用 data-st-to 指这一页的元素`);
+      return timeline();
+    }
+    // 元素在画布坐标里的位置：屏幕位置减去页面位置，再除以 reveal 的缩放
+    const sr = section.getBoundingClientRect();
+    const scale = sr.width / W;
+    const er = anchor.getBoundingClientRect();
+    const r = { x: (er.left - sr.left) / scale, y: (er.top - sr.top) / scale, w: er.width / scale, h: er.height / scale };
+    const cx0 = r.x + r.w / 2;
+    const cy0 = r.y + r.h / 2;
+    const fit = Math.min(r.w / W, r.h / H);     // 整页缩进元素里的比例（contain）
+    const K = 1 / fit;                          // 镜头推到这个倍数时，缩在里面的那页正好铺满
+
+    const clampC = (c, k, size) => Math.min(size - size / (2 * k), Math.max(size / (2 * k), c));
+    const ease = gsap.parseEase("power3.inOut");
+    // q：0 = 没推，1 = 推到头
+    const camAt = (q) => {
+      const k = Math.exp(Math.log(K) * q);
+      return { k, cx: clampC(W / 2 + (cx0 - W / 2) * Math.min(1, q * 1.5), k, W), cy: clampC(H / 2 + (cy0 - H / 2) * Math.min(1, q * 1.5), k, H) };
+    };
+    const qAt = (t) => { const e = ease(Math.min(1, t / d)); return dir === "in" ? e : 1 - e; };
+
+    // 缩在里面的那页要有底色，否则长大时透出后面的页；而且要压在被推拉的那页上面
+    inner.style.background = "var(--bg)";
+    inner.style.zIndex = "2";
+    outer.style.zIndex = "1";
+    const place = (t) => {
+      const cam = camAt(qAt(t));
+      gsap.set(outer, { x: W / 2 - cam.cx * cam.k, y: H / 2 - cam.cy * cam.k, scale: cam.k, transformOrigin: "0 0" });
+      // 元素在屏幕上的中心和尺寸 → 里面那页的位置
+      const sx = W / 2 + (cx0 - cam.cx) * cam.k;
+      const sy = H / 2 + (cy0 - cam.cy) * cam.k;
+      const s = fit * cam.k;
+      gsap.set(inner, { x: sx - (W * s) / 2, y: sy - (H * s) / 2, scale: s, transformOrigin: "0 0" });
+      return cam;
+    };
+    const p = { t: 0 };
+    const render = () => {
+      const cam = place(p.t);
+      const dt = 1 / 240;
+      const k2 = camAt(qAt(Math.min(d, p.t + dt))).k;
+      const edgeSpeed = (Math.abs(k2 - cam.k) / dt / cam.k) * (W / 2);
+      isoBlur([outer, inner], Math.min(6, (edgeSpeed * SHUTTER) / 4), 1);
+      // in：新页在元素里从透明显出来（前 45%）；out：旧页缩进元素后淡掉（后 40%）
+      const u = p.t / d;
+      inner.style.opacity = dir === "in" ? Math.min(1, Math.max(0, (u - 0.1) / 0.35)) : Math.min(1, Math.max(0, (0.95 - u) / 0.35));
+    };
+    render();
+    return timeline()
+      .to(p, { t: d, duration: d, ease: "none", onUpdate: render }, 0)
+      // 结束时新页回到原样（镜头被夹在画布边缘时可能差几个像素），旧页藏起来
+      .set(enter, { clearProps: "transform,opacity,filter,background,zIndex" }, d)
+      .set(ghost, { autoAlpha: 0 }, d);
   };
 
   // 新元素的入场方式（data-enter）。默认上浮淡入；图表用 grow-up / grow-right 从基线长出来
@@ -956,6 +1024,39 @@
   let current = null;
   let lastIndex = null;
 
+  // ───────── 场景内动画（orca-motion-skill）─────────
+  // 页面里有 .mo-scene 且页面加载了 motion.js（window.OrcaMotion）时，转场结束后播放场景自己的时间线。
+  // 本 skill 只管什么时候播：转场结束后开始，离开这一页时直接跳到结尾（ghost 克隆拍到的是完成状态）。
+  let scene = null;       // 当前页的场景时间线（暂停状态，由这里驱动）
+  let sceneCall = null;
+  const hasScenes = (slide) => !!(window.OrcaMotion && slide?.querySelector(".mo-scene"));
+  function sceneFor(slide) {
+    if (!hasScenes(slide)) return null;
+    return window.OrcaMotion.build(slide);
+  }
+  function stopScene() {
+    sceneCall?.kill();
+    sceneCall = null;
+    scene?.progress(1).pause();
+    scene = null;
+  }
+  // 转场要多久：GSAP 转场看时间线；共享元素看 reveal 的 auto-animate 时长（取页上写的最长的那个）
+  function transitionSeconds(slide) {
+    let t = current ? current.duration() : 0;
+    if (slide.hasAttribute("data-auto-animate") && !slide.dataset.st) {
+      const own = [slide, ...slide.querySelectorAll("[data-auto-animate-duration]")]
+        .map((el) => +el.dataset.autoAnimateDuration || 0);
+      t = Math.max(t, 0.9, ...own);
+    }
+    return t;
+  }
+  function startScene(slide, delay, prebuilt) {
+    scene = prebuilt ?? sceneFor(slide);
+    if (!scene) return;
+    scene.pause(0);
+    if (!CAPTURE) sceneCall = gsap.delayedCall(delay, () => scene?.play(0));
+  }
+
   function cleanup() {
     // 先跑到终点再销毁，避免中途翻页时元素停在隐藏状态
     current?.progress(1).kill();
@@ -965,24 +1066,35 @@
     clearBlur();
   }
 
-  function onSlide({ currentSlide, previousSlide, indexh }) {
+  function onSlide(e) {
+    stopScene();
+    // 先把新页的场景图形建出来（停在第 0 秒），转场才能拿场景里生成的元素当锚点
+    const next = sceneFor(e.currentSlide);
+    next?.pause(0);
+    const played = runTransition(e);
+    // 往回翻、跳页没有转场，场景直接从头播
+    startScene(e.currentSlide, played ? transitionSeconds(e.currentSlide) : 0, next);
+  }
+
+  function runTransition({ currentSlide, previousSlide, indexh }) {
     cleanup();
     const forward = lastIndex !== null && indexh === lastIndex + 1;
     lastIndex = indexh;
-    if (!previousSlide || !forward) return;
+    if (!previousSlide || !forward) return false;
     const kind = currentSlide.dataset.st;
     if (!kind) {
       if (currentSlide.hasAttribute("data-auto-animate") && previousSlide.hasAttribute("data-auto-animate")) {
         current = autoAnimateExtras(currentSlide, previousSlide);
         current.progress(0);
         if (!CAPTURE) current.play();
+        return true;
       }
-      return;
+      return false;
     }
     const build = builders[kind];
     if (!build) {
       console.error(`[orca-transition-skill] 不认识的 data-st="${kind}"，可选：${Object.keys(builders).join(" / ")}`);
-      return;
+      return false;
     }
     const enter = currentSlide.querySelector(":scope > .st-enter");
     const ghost = snapshot(previousSlide);
@@ -990,6 +1102,7 @@
     current = build(currentSlide, ghost, enter);
     current.progress(0);
     if (!CAPTURE) current.play();
+    return true;
   }
 
   prepare();
@@ -1007,18 +1120,24 @@
     autoAnimateDuration: 0.9,
     autoAnimateEasing: "cubic-bezier(0.65, 0, 0.35, 1)",
   });
-  Reveal.on("ready", (e) => { lastIndex = e.indexh; });
+  Reveal.on("ready", (e) => {
+    lastIndex = e.indexh;
+    startScene(e.currentSlide, 0);
+  });
   Reveal.on("slidechanged", onSlide);
 
   // 本次转场的 CSS 动画。暂停的动画不会自己结束，不单独记下来的话，
   // 下一次 seek 会把上一次转场的动画也倒回去，ghost 克隆时就拍到错误的状态。
   let captured = [];
+  let sceneOffset = 0;    // 场景在这一段录制里从第几毫秒开始（= 转场结束）
 
   window.__capture = {
     // 切页后等两帧，让 auto-animate 把 CSS transition 挂上，再全部冻住。返回这次转场的总时长（毫秒）
     async go(index) {
       for (const a of captured) a.finish();
       current?.progress(1);
+      const target = Reveal.getSlide(index);
+      if (Reveal.getIndices().h === index && !scene) startScene(target, 0); // 第一页不会触发 slidechanged
       Reveal.slide(index);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       captured = document.getAnimations();
@@ -1028,12 +1147,17 @@
         end = Math.max(end, a.effect.getComputedTiming().endTime);
       }
       if (current) end = Math.max(end, current.duration() * 1000);
-      const hold = +(Reveal.getSlide(index).dataset.hold || 1.5) * 1000;
-      return { transition: end, hold };
+      let hold = +(target.dataset.hold || 1.5) * 1000;
+      // 有场景动画时：停留至少要放完场景，再多停 0.8 秒看清结尾
+      const sceneMs = scene ? scene.duration() * 1000 : 0;
+      if (sceneMs) hold = Math.max(hold, sceneMs + 800);
+      sceneOffset = end;
+      return { transition: end, hold, scene: sceneMs };
     },
     seek(ms) {
-      for (const a of captured) a.currentTime = ms;
+      for (const a of captured) a.currentTime = Math.min(ms, a.effect.getComputedTiming().endTime);
       current?.time(ms / 1000);
+      scene?.time(Math.max(0, ms - sceneOffset) / 1000);
     },
     count: () => Reveal.getTotalSlides(),
   };
