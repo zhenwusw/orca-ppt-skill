@@ -392,16 +392,17 @@
   };
 
   // 放大进元素内部（语义缩放）。
-  //   in ：旧页的镜头推向 data-zoom="from" 元素；新页整页缩在这个元素的位置上，跟着镜头一起长大，
-  //        镜头推到头时新页正好铺满画面。看起来是「这个格子里面就是下一页」。
-  //   out：反过来。新页从推近到 data-zoom="to" 元素的状态拉回，旧页整页缩进这个元素里消失。
+  //   in ：上一页的 data-zoom 元素成为主角：页面被镜头缓慢推近一点、虚化并淡出，只剩这个元素一边长大、一边移到画面正中；
+  //        长到够大后，下一页在元素的形状里显出来，元素铺满画面时下一页正好 1:1 铺满。
+  //   out：反过来。这一页收进元素的形状里，元素一边缩小一边回到原位，页面其他内容淡入。
+  // 页面只推近到 2 倍（推到几十倍时周围的格子、虚线框会被放得很大，抢主角），主角自己长到铺满。
   // 元素位置按屏幕上的实际位置算（包括场景镜头的变换），元素可以在 .mo-scene 里。
   builders["zoom-into"] = (section, ghost, enter) => {
     const d = +section.dataset.stDuration || 1.8;
     const dir = section.dataset.stDirection || "in";
     const key = dir === "in" ? section.dataset.stFrom : section.dataset.stTo;
-    const outer = dir === "in" ? ghost : enter;   // 被镜头推拉的那一页
-    const inner = dir === "in" ? enter : ghost;   // 缩在元素里的那一页
+    const outer = dir === "in" ? ghost : enter;   // 元素所在的那一页（淡出 / 淡入）
+    const inner = dir === "in" ? enter : ghost;   // 在元素形状里的那一页
     const anchor = key && outer.querySelector(`[data-zoom="${key}"]`);
     if (!anchor) {
       console.error(`[orca-transition-skill] zoom-into（${dir}）找不到 data-zoom="${key}"：in 用 data-st-from 指上一页的元素，out 用 data-st-to 指这一页的元素`);
@@ -412,51 +413,76 @@
     const scale = sr.width / W;
     const er = anchor.getBoundingClientRect();
     const r = { x: (er.left - sr.left) / scale, y: (er.top - sr.top) / scale, w: er.width / scale, h: er.height / scale };
+    // 元素的圆角（画布像素）：computed style 是元素自身尺寸下的值，按屏幕上的实际大小换算
+    const rad = (parseFloat(getComputedStyle(anchor).borderTopLeftRadius) || 0) * (anchor.offsetWidth ? r.w / anchor.offsetWidth : 1);
     const cx0 = r.x + r.w / 2;
     const cy0 = r.y + r.h / 2;
-    const fit = Math.min(r.w / W, r.h / H);     // 整页缩进元素里的比例（contain）
-    const K = 1 / fit;                          // 镜头推到这个倍数时，缩在里面的那页正好铺满
 
-    const clampC = (c, k, size) => Math.min(size - size / (2 * k), Math.max(size / (2 * k), c));
-    const ease = gsap.parseEase("power3.inOut");
-    // q：0 = 没推，1 = 推到头
-    const camAt = (q) => {
-      const k = Math.exp(Math.log(K) * q);
-      return { k, cx: clampC(W / 2 + (cx0 - W / 2) * Math.min(1, q * 1.5), k, W), cy: clampC(H / 2 + (cy0 - H / 2) * Math.min(1, q * 1.5), k, H) };
-    };
+    const ease = gsap.parseEase("power2.inOut");   // power3 起步太慢，前 0.4 秒像卡住
+    const smooth = (x, a, b) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
     const qAt = (t) => { const e = ease(Math.min(1, t / d)); return dir === "in" ? e : 1 - e; };
-
-    // 缩在里面的那页要有底色，否则长大时透出后面的页；而且要压在被推拉的那页上面
-    inner.style.background = "var(--bg)";
-    inner.style.zIndex = "2";
-    outer.style.zIndex = "1";
-    const place = (t) => {
-      const cam = camAt(qAt(t));
-      gsap.set(outer, { x: W / 2 - cam.cx * cam.k, y: H / 2 - cam.cy * cam.k, scale: cam.k, transformOrigin: "0 0" });
-      // 元素在屏幕上的中心和尺寸 → 里面那页的位置
-      const sx = W / 2 + (cx0 - cam.cx) * cam.k;
-      const sy = H / 2 + (cy0 - cam.cy) * cam.k;
-      const s = fit * cam.k;
-      gsap.set(inner, { x: sx - (W * s) / 2, y: sy - (H * s) / 2, scale: s, transformOrigin: "0 0" });
-      return cam;
+    // q：0 = 元素在原位原大小，1 = 元素铺满画布。
+    // 尺寸按比例（对数）插值：小元素长大时每一刻的放大速度一样，不会前面慢、最后一下猛冲；
+    // 位置在前一半移到画面正中
+    const rectAt = (q) => {
+      const w = r.w * Math.pow(W / r.w, q);
+      const h = r.h * Math.pow(H / r.h, q);
+      const pan = smooth(q, 0, 0.5);
+      const cx = cx0 + (W / 2 - cx0) * pan;
+      const cy = cy0 + (H / 2 - cy0) * pan;
+      return { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy };
     };
+    // 纵深：元素所在的那页被镜头缓慢推近（最多 PUSH 倍，data-st-push 可调，默认 2），镜头跟着主角走
+    // （主角中心始终对着页面里元素的位置），同时轻微虚化、淡出。推得越深淡出越晚，让推近那段看得出来；
+    // 推太深周围的格子会被放大到抢主角
+    const PUSH = Math.max(1, +section.dataset.stPush || 2);
+    const FADE = 0.05 * (PUSH - 2);                  // 每多推 1 倍，淡出往后挪 5%
+
+    // 里面那页要有底色，否则透出后面的页；压在最上面
+    inner.style.background = "var(--bg)";
+    inner.style.zIndex = "3";
+    outer.style.zIndex = "1";
+    // 主角：元素的替身（同色、同圆角），在两页之间
+    inner.parentNode.querySelectorAll(":scope > .st-zoom-hero").forEach((n) => n.remove());
+    const cs = getComputedStyle(anchor);
+    const hero = document.createElement("div");
+    hero.className = "st-zoom-hero";
+    Object.assign(hero.style, { position: "absolute", left: "0", top: "0", margin: "0", background: cs.backgroundColor,
+      backgroundImage: cs.backgroundImage, zIndex: "2", pointerEvents: "none" });
+    inner.parentNode.append(hero);
+
     const p = { t: 0 };
     const render = () => {
-      const cam = place(p.t);
-      const dt = 1 / 240;
-      const k2 = camAt(qAt(Math.min(d, p.t + dt))).k;
-      const edgeSpeed = (Math.abs(k2 - cam.k) / dt / cam.k) * (W / 2);
-      isoBlur([outer, inner], Math.min(6, (edgeSpeed * SHUTTER) / 4), 1);
-      // in：新页在元素里从透明显出来（前 45%）；out：旧页缩进元素后淡掉（后 40%）
-      const u = p.t / d;
-      inner.style.opacity = dir === "in" ? Math.min(1, Math.max(0, (u - 0.1) / 0.35)) : Math.min(1, Math.max(0, (0.95 - u) / 0.35));
+      const q = qAt(p.t);
+      const R = rectAt(q);
+      const round = Math.min(rad * (R.w / r.w), R.w / 2, R.h / 2) * (1 - smooth(q, 0.6, 0.9));
+      Object.assign(hero.style, { width: `${R.w}px`, height: `${R.h}px`, borderRadius: `${round}px` });
+      gsap.set(hero, { x: R.x, y: R.y });
+      // 里面那页按「盖满元素」缩放、对准元素中心，裁成元素的形状；元素铺满画布时正好 1:1
+      const s = Math.max(R.w / W, R.h / H);
+      const tx = R.x + R.w / 2 - (W * s) / 2;
+      const ty = R.y + R.h / 2 - (H * s) / 2;
+      gsap.set(inner, { x: tx, y: ty, scale: s, transformOrigin: "0 0" });
+      const L = (R.x - tx) / s, T = (R.y - ty) / s, RR = W - (R.x + R.w - tx) / s, B = H - (R.y + R.h - ty) / s;
+      inner.style.clipPath = `inset(${T}px ${RR}px ${B}px ${L}px round ${round / s}px)`;
+      // 先淡掉周围（主角还小的时候），主角长到够大后下一页才在它的形状里显出来；显完后替身藏起来
+      const k = 1 + (PUSH - 1) * smooth(q, 0, 0.55);
+      gsap.set(outer, { x: R.cx - cx0 * k, y: R.cy - cy0 * k, scale: k, transformOrigin: "0 0" });
+      isoBlur([outer], 4 * smooth(q, 0.05 + FADE, 0.45 + FADE), k);
+      outer.style.opacity = 1 - smooth(q, 0.1 + FADE, 0.45 + FADE);
+      inner.style.opacity = smooth(q, 0.35, 0.7);
+      hero.style.opacity = 1 - smooth(q, 0.7, 0.76);
+      // 原来那个元素在替身离开期间藏起来，不然淡入 / 淡出的页面里会同时出现两个
+      anchor.style.visibility = q > 0 ? "hidden" : "";
     };
     render();
     return timeline()
       .to(p, { t: d, duration: d, ease: "none", onUpdate: render }, 0)
-      // 结束时新页回到原样（镜头被夹在画布边缘时可能差几个像素），旧页藏起来
-      .set(enter, { clearProps: "transform,opacity,filter,background,zIndex" }, d)
-      .set(ghost, { autoAlpha: 0 }, d);
+      // 结束时新页回到原样，旧页和替身藏起来
+      .set(enter, { clearProps: "transform,opacity,filter,background,zIndex,clipPath" }, d)
+      .set(ghost, { autoAlpha: 0 }, d)
+      .set(hero, { autoAlpha: 0 }, d)
+      .set(anchor, { clearProps: "visibility" }, d);
   };
 
   // 新元素的入场方式（data-enter）。默认上浮淡入；图表用 grow-up / grow-right 从基线长出来
