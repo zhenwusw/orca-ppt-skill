@@ -51,17 +51,6 @@ node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 [orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill) 做场景**内部**的 MG 动画（格子依次亮起、卡片弹出、拼字、数字滚动），
 本项目做场景**之间**的连贯。页面里放了 `.mo-scene` 时，`engine.js` 会在转场结束后播放场景，录制时逐帧录下来。
 
-## 与 frontend-slides 的关系
-
-[frontend-slides](https://github.com/zarazhangrui/frontend-slides) 关注的是**整体视觉风格**和**单页内的动画**：
-挑选风格预设，页面进入视口时元素依次淡入、上滑。翻页本身只是切换页面。
-
-本项目补的是另一半：**跨页之间的转场连贯性**。它根据前后两页的内容关系选择手法，让上一页的元素
-以看得见的连续运动变成下一页的元素，而不是一页消失、一页出现。
-
-两者定位互补，但实现方式不同：frontend-slides 输出零依赖的单文件 HTML，
-本项目依赖 reveal.js + GSAP 和统一的设计变量，目前不能在同一份稿子里直接混用。
-
 ## License
 
 [MIT](LICENSE)
