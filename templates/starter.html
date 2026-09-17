@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>{{TITLE}}</title>
+  <!-- {{ROOT}} = 从这份 HTML 到 skill 根目录的相对路径，比如 ../.. -->
+  <link rel="stylesheet" href="{{ROOT}}/node_modules/reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="{{ROOT}}/node_modules/reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="{{ROOT}}/runtime/tokens.css">
+</head>
+<body>
+<div class="reveal">
+
+<!-- 转场计划
+1→2  关系：…   手法：…
+-->
+
+<div class="slides">
+
+  <section data-auto-animate>
+    <p data-id="title" class="t-display" style="left:640px; top:400px;">{{TITLE}}</p>
+  </section>
+
+</div>
+</div>
+<script src="{{ROOT}}/node_modules/reveal.js/dist/reveal.js"></script>
+<script src="{{ROOT}}/node_modules/gsap/dist/gsap.min.js"></script>
+<script src="{{ROOT}}/runtime/engine.js"></script>
+</body>
+</html>

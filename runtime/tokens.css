@@ -1,0 +1,66 @@
+/* orca-transition-skill 视觉规范 · 设计变量
+ * 画布固定 1920×1080。所有坐标都是 40 的倍数（40px 基线网格）。
+ * 每页的直接子元素都绝对定位，用 style="left:…; top:…" 摆放。 */
+:root {
+  --canvas-w: 1920px;
+  --canvas-h: 1080px;
+  --margin-x: 120px;
+  --margin-top: 80px;
+  --grid: 40px;
+
+  /* 字号阶梯，只能用这五档 */
+  --type-display: 160px;  /* 封面标题、章节标题 */
+  --type-metric: 280px;   /* 关键数字 */
+  --type-h1: 72px;        /* 内容页标题 */
+  --type-h2: 48px;        /* 条目、小标题 */
+  --type-body: 36px;      /* 说明文字 */
+
+  /* 颜色：一个背景、两个面、两级文字、一个强调色、一个强调色的弱化版 */
+  --bg: #0b0b0f;
+  --surface: #1a1a22;
+  --surface-2: #26262f;
+  --text: #f5f5f7;
+  --text-dim: #8e8e98;
+  --accent: #ff7a1a;
+  --accent-soft: #3a2415;
+
+  --radius-s: 8px;
+  --radius-m: 24px;
+  --radius-l: 40px;
+  --radius-full: 9999px;
+
+  --font: "PingFang SC", -apple-system, "Helvetica Neue", sans-serif;
+}
+
+html, body, .reveal { background: var(--bg); }
+.reveal { font-family: var(--font); color: var(--text); }
+.reveal .slides { text-align: left; }
+.reveal .slides > section { width: var(--canvas-w); height: var(--canvas-h); padding: 0; }
+.reveal .slides > section > *,
+.st-layer > * { position: absolute; margin: 0; }
+.st-layer { position: absolute; inset: 0; }
+
+/* 文字 */
+.t-display { font-size: var(--type-display); font-weight: 700; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; }
+.t-metric  { font-size: var(--type-metric); font-weight: 700; line-height: 1; letter-spacing: -0.04em; color: var(--accent); white-space: nowrap; }
+.t-h1      { font-size: var(--type-h1); font-weight: 700; line-height: 1.1; white-space: nowrap; }
+.t-h2      { font-size: var(--type-h2); font-weight: 600; line-height: 1.2; }
+.t-body    { font-size: var(--type-body); line-height: 1.4; color: var(--text-dim); }
+.t-accent  { color: var(--accent); }
+.t-dim     { color: var(--text-dim); }
+
+/* 形状 */
+.s-surface { background: var(--surface); border-radius: var(--radius-l); }
+.s-surface-2 { background: var(--surface-2); border-radius: var(--radius-m); }
+.s-accent  { background: var(--accent); border-radius: var(--radius-s); }
+.s-accent-soft { background: var(--accent-soft); border-radius: var(--radius-m); }
+.s-dot     { background: var(--accent); border-radius: 50%; }
+
+/* 遮挡剪辑用的色块，由 engine.js 创建 */
+.st-mask { position: absolute; left: 0; top: 0; width: var(--canvas-w); height: var(--canvas-h); background: var(--accent); z-index: 10; }
+
+/* 故事模式：照片和引导框，由 engine.js 定位 */
+.reveal .st-photo { left: 0; top: 0; max-width: none; max-height: none; margin: 0; }
+.st-guide { left: 0; top: 0; width: var(--canvas-w); height: var(--canvas-h); z-index: 5; pointer-events: none; overflow: visible; }
+.st-guide path { stroke: var(--accent); stroke-width: 10; stroke-linejoin: round; fill: none; }
+.st-scrim { left: 0; top: 0; width: var(--canvas-w); height: var(--canvas-h); background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 40%); pointer-events: none; }

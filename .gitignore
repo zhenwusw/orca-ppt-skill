@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Logs
+npm-debug.log*
+*.log
+
+# Env / local config
+.env
+.env.*
+.claude/settings.local.json
+
+# Examples: only publish the minimal story-circle demo
+examples/*
+!examples/story-circle/
