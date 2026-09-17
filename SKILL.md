@@ -25,6 +25,7 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 
 ## 流程（按顺序，不许跳）
 
+0. **装依赖**：本 skill 根目录下没有 `node_modules/` 时，先在根目录跑 `npm install`（页面引用里面的 reveal.js 和 GSAP，录制要用 playwright-core）。
 1. **读规范**：按上表读。
 2. **列内容**：每页一个主角。故事稿先写出这一期要推的一个论点。
 3. **写转场计划**：每次翻页一行，先写两页的「关系」，再选手法。计划作为 HTML 注释放进文件。

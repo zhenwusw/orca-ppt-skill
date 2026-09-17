@@ -10,11 +10,9 @@ Agent 的使用说明见 [`SKILL.md`](SKILL.md)。
 
 ```bash
 npx skills add zhenwusw/orca-transition-skill -g -a claude-code
-(cd ~/.claude/skills/orca-transition-skill && npm install)
 ```
 
-演示稿直接引用 `node_modules/` 里的 reveal.js 和 GSAP，所以装完必须在 skill 目录里 `npm install`。
-其他 agent 把 `-a` 换成对应的名字，`npm install` 的目录换成它的 skills 目录。
+其他 agent 把 `-a` 换成对应的名字。依赖（reveal.js、GSAP、playwright-core）由 agent 首次使用时在 skill 目录里 `npm install`。
 要做场景内部的 MG 动画，再装 [orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill)，两个装在同一个 skills 目录下。
 
 录视频还需要：
