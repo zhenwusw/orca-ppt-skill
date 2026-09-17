@@ -549,32 +549,26 @@
   const toScreen = (cam, x, y) => [W / 2 + (x - cam.cx) * cam.k, H / 2 + (y - cam.cy) * cam.k];
 
   // ── 引导框的点
-  // 起点统一取「中心正上方」那一点，顺时针走一圈，不同形状之间逐点插值才不会扭成麻花
+  // 所有形状都按「从中心每隔同样角度发一条射线，取射线和轮廓的交点」取点，起点在正上方，顺时针。
+  // 这样圆和方的第 n 个点在同一个方向上，逐点插值时形状对称地收放，不会被拧歪。
+  // 锚点都是凸形状（圆、矩形、四边形），每条射线和轮廓只有一个交点。
   function resample(poly, cx, cy) {
-    let area = 0;
-    for (let i = 0; i < poly.length; i++) {
-      const [x1, y1] = poly[i];
-      const [x2, y2] = poly[(i + 1) % poly.length];
-      area += x1 * y2 - x2 * y1;
-    }
-    if (area < 0) poly = poly.slice().reverse(); // 画布 y 朝下，面积为正即顺时针
-    let start = 0, best = Infinity;
-    poly.forEach(([x, y], i) => {
-      const d = Math.abs(Math.atan2(y - cy, x - cx) + Math.PI / 2);
-      if (y < cy && d < best) { best = d; start = i; }
-    });
-    poly = [...poly.slice(start), ...poly.slice(0, start)];
-    const seg = poly.map((p, i) => Math.hypot(poly[(i + 1) % poly.length][0] - p[0], poly[(i + 1) % poly.length][1] - p[1]));
-    const total = seg.reduce((s, x) => s + x, 0);
     const out = [];
-    let i = 0, acc = 0;
     for (let n = 0; n < GUIDE_POINTS; n++) {
-      const target = (n / GUIDE_POINTS) * total;
-      while (acc + seg[i] < target && i < poly.length - 1) acc += seg[i++];
-      const t = seg[i] ? (target - acc) / seg[i] : 0;
-      const [x1, y1] = poly[i];
-      const [x2, y2] = poly[(i + 1) % poly.length];
-      out.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+      const a = -Math.PI / 2 + (n / GUIDE_POINTS) * Math.PI * 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      let best = null;
+      for (let i = 0; i < poly.length; i++) {
+        const [x1, y1] = poly[i];
+        const [x2, y2] = poly[(i + 1) % poly.length];
+        const ex = x2 - x1, ey = y2 - y1;
+        const den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const t = ((x1 - cx) * ey - (y1 - cy) * ex) / den; // 射线上的距离
+        const u = ((x1 - cx) * dy - (y1 - cy) * dx) / den; // 边上的位置 0..1
+        if (t > 0 && u >= -1e-6 && u <= 1 + 1e-6 && (best === null || t > best)) best = t;
+      }
+      out.push(best === null ? [cx, cy] : [cx + dx * best, cy + dy * best]);
     }
     return out;
   }
@@ -585,14 +579,28 @@
     });
   }
   // 锚点在当前镜头下的引导框：圆直接取点；多边形往外扩一圈，再把角修圆
-  function outline(cam, a) {
+  // 多边形锚点在屏幕上的四个角（已往外扩），统一从左上角起、顺时针排，两个四边形才能逐角混合
+  function screenCorners(cam, a) {
     const [cx, cy] = toScreen(cam, a.cx, a.cy);
-    if (a.kind === "circle") return circlePoints(cx, cy, a.r * cam.k + GUIDE_PAD);
-    const corners = a.pts.map(([x, y]) => {
+    let corners = a.pts.map(([x, y]) => {
       const [sx, sy] = toScreen(cam, x, y);
       const d = Math.hypot(sx - cx, sy - cy) || 1;
       return [sx + ((sx - cx) / d) * GUIDE_PAD * 1.4, sy + ((sy - cy) / d) * GUIDE_PAD * 1.4];
     });
+    let area = 0;
+    corners.forEach(([x1, y1], i) => { const [x2, y2] = corners[(i + 1) % 4]; area += x1 * y2 - x2 * y1; });
+    if (area < 0) corners = corners.reverse();
+    let start = 0;
+    corners.forEach(([x, y], i) => { if (x + y < corners[start][0] + corners[start][1]) start = i; });
+    return [...corners.slice(start), ...corners.slice(0, start)];
+  }
+  function outline(cam, a) {
+    const [cx, cy] = toScreen(cam, a.cx, a.cy);
+    if (a.kind === "circle") return circlePoints(cx, cy, a.r * cam.k + GUIDE_PAD);
+    return cornersOutline(screenCorners(cam, a));
+  }
+  function cornersOutline(corners) {
+    const [cx, cy] = centroid(corners);
     const edges = corners.map((p, i) => Math.hypot(corners[(i + 1) % 4][0] - p[0], corners[(i + 1) % 4][1] - p[1]));
     const radius = Math.min(...edges) * 0.12;
     const dense = [];
@@ -712,11 +720,25 @@
       }
       return len;
     };
+    // 两个锚点形状不完全一样时（正矩形对斜四边形），切点前后各 BLEND 秒把引导框的形状混合过去，
+    // 不然切点那一帧框会突然变形。切点处两边的位置和大小本来就对齐，混合只改形状。
+    const BLEND = 0.12;
+    const oldCamAt = (t) => clampCam(oldImg, mixCam(oldRest, focusCam(from, plan), inE(Math.min(1, t / half))));
+    const newCamAt = (t) => clampCam(newImg, mixCam(focusCam(to, plan), newRest, outE(Math.max(0, (t - half) / half))));
     const render = () => {
-      const { img, cam, anchor } = camAt(p.t);
+      const { img, cam } = camAt(p.t);
       applyCam(img, cam);
       isoBlur([img], Math.min(6, smear(p.t) / 4), cam.k);
-      if (guide) drawGuide(guide, outline(cam, anchor));
+      if (!guide) return;
+      const w = Math.min(1, Math.max(0, (p.t - (half - BLEND)) / (2 * BLEND)));
+      const blend = w * w * (3 - 2 * w);
+      if (blend <= 0) return drawGuide(guide, outline(oldCamAt(p.t), from));
+      if (blend >= 1) return drawGuide(guide, outline(newCamAt(p.t), to));
+      if (from.kind === "poly" && to.kind === "poly") {
+        // 两个四边形：混合四个角，再生成圆角轮廓，中途每一帧都是干净的四边形
+        return drawGuide(guide, cornersOutline(mixPoints(screenCorners(oldCamAt(p.t), from), screenCorners(newCamAt(p.t), to), blend)));
+      }
+      drawGuide(guide, mixPoints(outline(oldCamAt(p.t), from), outline(newCamAt(p.t), to), blend));
     };
     gsap.set(enter, { autoAlpha: 0 });
     gsap.set(newCaps, { autoAlpha: 0, y: 24 });
