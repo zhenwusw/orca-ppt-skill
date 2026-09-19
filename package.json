@@ -5,6 +5,8 @@
   "description": "Agent skill for HTML presentation decks with cinematic slide transitions (reveal.js + GSAP), recordable to video.",
   "type": "module",
   "scripts": {
+    "dev": "node scripts/gallery.mjs && npx serve .",
+    "gallery": "node scripts/gallery.mjs",
     "capture": "node scripts/capture.mjs"
   },
   "repository": {

@@ -32,6 +32,18 @@ npx skills add zhenwusw/orca-transition-skill -g -a claude-code
 node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 ```
 
+## 本地预览全部示例
+
+```bash
+npm run dev
+```
+
+扫 `examples/`，生成首页 `index.html`（主题、版式、手法、页数、时长、首帧缩略图全部从稿子和 mp4 里读出来），
+然后起静态服务。打开 `localhost:3000` 就是它。
+
+只生成不起服务用 `npm run gallery`。缩略图和时长要 `ffmpeg` / `ffprobe`，没装就跳过这两项，页面照常。
+生成物是根目录的 `index.html` 和 `gallery/thumbs/`，都不进版本库。
+
 ## 目录
 
 | 路径 | 内容 |
@@ -44,6 +56,8 @@ node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
 | `examples/story-circle/` | 故事模式示例 |
 | `examples/editorial-forest/` | 主题示例：Editorial Forest 配色，整页 ↔ 卡片转场 |
 | `examples/soft-editorial/` | 主题示例：Soft Editorial 配色，卡片换布局 + 多合一转场 |
+| `examples/emerald-editorial/` | 主题示例：Emerald Editorial 配色，横条一变多 + 整页推近 + 形态变换 + 遮挡剪辑 |
+| `examples/editorial-tri-tone/` | 主题示例：Editorial Tri-Tone 配色，放大进元素内部 + 文字级匹配 + 原地替换 + 胶囊元素交接 |
 
 示例照片由 AI 生成。
 

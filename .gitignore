@@ -22,3 +22,10 @@ examples/*
 !examples/story-circle/
 !examples/editorial-forest/
 !examples/soft-editorial/
+!examples/emerald-editorial/
+!examples/editorial-tri-tone/
+!examples/emerald-bento/
+
+# npm run dev 生成的本地预览页
+/index.html
+/gallery/

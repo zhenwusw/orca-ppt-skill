@@ -10,6 +10,8 @@
 | `editorial-forest.css` | 燕麦米色纸面，森林绿大面板，灰粉强调；Source Serif 4 + JetBrains Mono | frontend-slides bold-template-pack |
 | `clearing.css` | 群青底，白色半透明图形，黄色主角；Inter + JetBrains Mono | 一段 Remotion 日历产品动效（orca-motion-skill 示例） |
 | `soft-editorial.css` | 奶油纸面，粉 / 黄绿 / 桃三色大圆角卡片；Cormorant Garamond + Work Sans | frontend-slides bold-template-pack |
+| `emerald-editorial.css` | 饱和翡翠绿画布，深海军蓝反转面板，燕麦米交替面；圆角全零，4px 结构线；Bodoni Moda 900 + Manrope | beautiful-html-templates/emerald-editorial |
+| `editorial-tri-tone.css` | 腮红粉画布，酒红深面板，奶油黄卡片；胶囊标签 + 大圆角卡片；Bricolage Grotesque + Instrument Serif + JetBrains Mono | beautiful-html-templates/editorial-tri-tone |
 
 ## 使用主题
 
