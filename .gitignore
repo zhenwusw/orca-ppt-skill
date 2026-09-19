@@ -27,6 +27,12 @@ examples/*
 !examples/emerald-bento/
 !examples/tritone-bento/
 !examples/forest-bento/
+!examples/spec-wall/
+
+# 稿子引用的素材（整页视频的片源）
+!examples/_assets/
+examples/_assets/*
+!examples/_assets/clips/
 
 # npm run dev 生成的本地预览页和缩略图
 /index.html

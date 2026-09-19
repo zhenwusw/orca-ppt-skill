@@ -51,7 +51,7 @@ const walk = (d) => readdirSync(d, { withFileTypes: true })
 for (const name of listed) {
   const from = join(ROOT, "examples", name);
   const to = join(OUT, "examples", name);
-  cpSync(from, to, { recursive: true, filter: (p) => !p.endsWith(".mp4") });
+  cpSync(from, to, { recursive: true, filter: (p) => !p.endsWith("index.mp4") });
 
   let html = readFileSync(join(to, "index.html"), "utf8")
     .replace(/\.\.\/\.\.\/node_modules\/reveal\.js\/dist\//g, "../../vendor/")
@@ -65,6 +65,19 @@ for (const name of listed) {
     html = html.split(f.slice(to.length + 1)).join(jpg.slice(to.length + 1));
   }
   writeFileSync(join(to, "index.html"), html);
+}
+
+// 稿子引用 examples/_assets/ 下的素材时（整页视频的片源），把被引到的文件也拷过去
+for (const name of listed) {
+  const html = readFileSync(join(OUT, "examples", name, "index.html"), "utf8");
+  for (const m of html.matchAll(/(?:src|href)="\.\.\/(_assets\/[^"]+)"/g)) {
+    const rel = m[1];
+    const src = join(ROOT, "examples", rel);
+    if (!existsSync(src)) { console.error(`${name} 引用了不存在的素材：examples/${rel}`); process.exit(1); }
+    const dst = join(OUT, "examples", rel);
+    mkdirSync(dirname(dst), { recursive: true });
+    cpSync(src, dst);
+  }
 }
 
 const size = (d) => readdirSync(d, { withFileTypes: true })
