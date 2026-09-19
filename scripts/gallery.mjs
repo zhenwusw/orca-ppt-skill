@@ -58,52 +58,6 @@ const dist = (a, b) => {
 const LAYOUT_NAMES = { standard: "汇报稿", story: "故事稿", bento: "Bento" };
 const layoutName = (k) => (k ? LAYOUT_NAMES[k] || k : "未标注");
 
-function themePath(themeFile) {
-  return themeFile === "tokens.css"
-    ? join(ROOT, "runtime", "tokens.css")
-    : join(ROOT, "runtime", "themes", themeFile);
-}
-
-// 主题的显示名写在每个主题文件开头的注释里：「主题：Editorial Forest（…」
-function readThemeName(themeFile) {
-  if (themeFile === "tokens.css") return "默认";
-  const p = themePath(themeFile);
-  if (!existsSync(p)) return themeFile.replace(/\.css$/, "");
-  const m = readFileSync(p, "utf8").match(/主题：([^（(\n*]+)/);
-  return m ? m[1].trim() : themeFile.replace(/\.css$/, "");
-}
-
-function readPalette(themeFile) {
-  const p = themePath(themeFile);
-  if (!existsSync(p)) return [];
-  const css = readFileSync(p, "utf8");
-  const pick = (name) => {
-    const m = css.match(new RegExp(`--${name}:\\s*([^;]+);`));
-    const v = m ? m[1].trim() : null;
-    return v && /^#[0-9a-f]{3,8}$/i.test(v) ? v : null;
-  };
-  // 顺序 = 代表性从强到弱。accent 排在 surface-2 前面，它比二级面更能说明这套主题
-  const candidates = ["bg", "surface", "accent", "surface-2", "accent-soft", "text"]
-    .map(pick).filter(Boolean);
-
-  const picked = [];
-  const rejected = [];
-  for (const c of candidates) {
-    if (picked.length === 3) break;
-    if (picked.some((q) => dist(c, q) < MIN_BETWEEN)) continue;
-    if (dist(c, CARD_BG) < MIN_FROM_CARD) { rejected.push(c); continue; }
-    picked.push(c);
-  }
-  // 够不到三个（整套主题都是暗色）就从被刷掉的里面补，先补离卡片底色最远的
-  rejected.sort((a, b) => dist(b, CARD_BG) - dist(a, CARD_BG));
-  for (const c of rejected) {
-    if (picked.length === 3) break;
-    if (picked.some((q) => dist(c, q) < MIN_BETWEEN)) continue;
-    picked.push(c);
-  }
-  return picked;
-}
-
 function parseDeck(name) {
   const dir = join(EXAMPLES, name);
   const htmlPath = join(dir, "index.html");
@@ -111,7 +65,6 @@ function parseDeck(name) {
   const html = readFileSync(htmlPath, "utf8");
 
   const title = (html.match(/<title>([\s\S]*?)<\/title>/) || [, name])[1].trim();
-  const themeFile = (html.match(/runtime\/themes\/([a-z0-9-]+\.css)/) || [, "tokens.css"])[1];
   const pages = (html.match(/<section[\s>]/g) || []).length;
 
   const planBlock = (html.match(/<!--[^]*?转场计划[^]*?-->/) || [""])[0];
@@ -127,29 +80,28 @@ function parseDeck(name) {
   }
 
   const mp4 = join(dir, "index.mp4");
-  let seconds = null, frames = null, thumb = null;
+  // seconds 只用来给缩略图定位（跳到 35% 处），不显示在卡片上
+  let seconds = null, thumb = null;
   if (existsSync(mp4)) {
     if (hasFfprobe) {
       const d = run("ffprobe", ["-v", "error", "-show_entries", "format=duration",
         "-of", "default=nw=1:nk=1", mp4]);
       if (d) seconds = Math.round(parseFloat(d) * 10) / 10;
-      const n = run("ffprobe", ["-v", "error", "-select_streams", "v:0",
-        "-count_packets", "-show_entries", "stream=nb_read_packets",
-        "-of", "default=nw=1:nk=1", mp4]);
-      if (n) frames = parseInt(n, 10);
     }
     if (hasFfmpeg) {
+      // 不取封面：同一套主题的几份稿子封面往往同源（页眉 + 大标题 + 装饰），
+      // 取第一帧会让它们在首页上撞脸。跳到 35% 处，用 ffmpeg 的 thumbnail 滤镜
+      // 从两秒里挑一帧最有代表性的 —— 它会避开转场中途那些糊帧。
       const out = join(dir, "thumb.jpg");
-      const ok = run("ffmpeg", ["-v", "error", "-ss", "1", "-i", mp4,
-        "-frames:v", "1", "-vf", "scale=848:-1", "-q:v", "4", "-y", out]);
+      const from = seconds ? Math.max(1, seconds * 0.35).toFixed(2) : "1";
+      const ok = run("ffmpeg", ["-v", "error", "-ss", from, "-i", mp4,
+        "-frames:v", "1", "-vf", "thumbnail=60,scale=848:-1", "-q:v", "4", "-y", out]);
       if (ok !== null && existsSync(out)) thumb = `examples/${name}/thumb.jpg`;
     }
   }
 
   return {
-    name, title, themeFile, layout, pages, moves, seconds, frames, thumb,
-    palette: readPalette(themeFile),
-    themeName: readThemeName(themeFile),
+    name, title, layout, pages, moves, seconds, thumb,
     mtime: statSync(htmlPath).mtimeMs,
     hasVideo: existsSync(mp4),
   };
@@ -177,28 +129,21 @@ function group(keyOf, labelOf) {
 const layoutTabs = group((d) => d.layout || "unknown", (d) => layoutName(d.layout));
 
 function card(d) {
-  const meta = d.seconds
-    ? `${d.pages} 页 · ${d.seconds}s`
-    : `${d.pages} 页 · 未录制`;
-  const swatches = d.palette.map((c) =>
-    `<span class="sw" style="background:${esc(c)}"></span>`).join("");
+  const meta = `${d.pages} 页`;
   const chips = d.moves.slice(0, 5).map((m) => `<span class="chip">${esc(m)}</span>`).join("");
-  const layout = `<span class="layout" data-std="${d.layout === "standard" || !d.layout}">${esc(layoutName(d.layout))}</span>`;
   const thumb = d.thumb
     ? `<img class="shot" src="${esc(d.thumb)}" alt="${esc(d.name)} 首帧" loading="lazy">`
     : `<div class="shot empty"><span>没有 index.mp4</span></div>`;
   return `<article class="card" data-layout="${esc(d.layout || "unknown")}">
-  <a class="thumb" href="examples/${esc(d.name)}/">${thumb}
+  <a class="thumb play" data-name="${esc(d.name)}" href="examples/${esc(d.name)}/">${thumb}
     <span class="hover"><span class="btn solid">放映</span></span>
   </a>
   <div class="body">
+    ${chips ? `<div class="chips">${chips}</div>` : `<p class="nochip">没写转场计划</p>`}
     <div class="row">
-      <a class="name" href="examples/${esc(d.name)}/">${esc(d.name)}</a>
+      <a class="name play" data-name="${esc(d.name)}" href="examples/${esc(d.name)}/">${esc(d.name)}</a>
       <span class="meta">${esc(meta)}</span>
     </div>
-    <div class="row sub"><span class="sws">${swatches}</span><span class="theme">${esc(d.themeFile)}</span>${layout}</div>
-    ${chips ? `<div class="chips">${chips}</div>` : ""}
-    <div class="links"><a href="examples/${esc(d.name)}/">放映</a></div>
   </div>
 </article>`;
 }
@@ -238,22 +183,31 @@ hr{border:0;height:1px;background:#1f1f27;margin:28px 0}
 .card:hover .hover,.thumb:focus-visible .hover{opacity:1}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 18px;font-size:13.5px;font-weight:600;border-radius:7px}
 .btn.solid{background:var(--accent);color:#0b0b0f}
-.body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.body{padding:18px 20px 18px;display:flex;flex-direction:column;gap:14px}
 .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.row.sub{align-items:center;justify-content:flex-start;gap:9px;flex-wrap:wrap}
-.name{font-size:17px;font-weight:600;letter-spacing:-.01em;color:var(--text);text-decoration:none}
+.name{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.02em;color:var(--dim);text-decoration:none}
 .name:hover{color:var(--accent)}
-.meta{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim);white-space:nowrap}
-.sws{display:flex;gap:4px}
-.sw{width:11px;height:11px;border-radius:50%;border:1px solid rgba(255,255,255,.16)}
-.theme{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim)}
-.layout{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--accent);border:1px solid rgba(255,122,26,.45);border-radius:4px;padding:2px 7px}
-.layout[data-std="true"]{color:var(--faint);border-color:var(--line)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:#b9b9c2;background:#1e1e26;border-radius:999px;padding:4px 9px}
-.links{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--faint)}
-.links a{color:var(--accent);text-decoration:none}
-.links a:hover{text-decoration:underline}
+.nochip{margin:0;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--faint)}
+.meta{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--faint);white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+/* 转场手法是这个首页真正要展示的东西，给它最高的视觉权重 */
+.chip{font-size:14.5px;font-weight:500;color:var(--text);background:#21212b;border:1px solid #30303c;border-radius:8px;padding:7px 12px;line-height:1.2}
+#viewer{padding:0;border:0;background:transparent;max-width:100vw;max-height:100vh}
+#viewer::backdrop{background:rgba(6,6,9,.97);backdrop-filter:blur(6px)}
+.vbox{display:flex;flex-direction:column;gap:10px;width:min(92vw,150vh)}
+.vbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.vtitle{font-size:16px;font-weight:600;color:var(--text)}
+.vnav{display:flex;align-items:center;gap:8px}
+.vbtn{min-width:44px;min-height:36px;padding:8px 12px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:14px;line-height:1;cursor:pointer}
+.vbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.vbtn:disabled{opacity:.35;cursor:default}
+.vpage{min-width:56px;text-align:center;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--dim)}
+.vhint{flex-grow:1;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--faint)}
+.vopen{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--accent);text-decoration:none}
+.vopen:hover{text-decoration:underline}
+.vclose{min-height:36px;padding:8px 16px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13px;cursor:pointer}
+.vclose:hover{border-color:var(--accent);color:var(--accent)}
+.vframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;display:block}
 @media (max-width:640px){.wrap{padding:28px 20px}h1{font-size:34px}.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -274,8 +228,85 @@ ${hasFfmpeg ? "" : '<p class="warn">未装 ffmpeg，缩略图和时长缺失</p>
 ${decks.map(card).join("\n")}
 </div>
 </div>
+
+<dialog id="viewer">
+  <div class="vbox">
+    <div class="vbar">
+      <span class="vtitle"></span>
+      <span class="vnav">
+        <button class="vbtn vprev" type="button" aria-label="上一页">←</button>
+        <span class="vpage" aria-live="polite">— / —</span>
+        <button class="vbtn vnext" type="button" aria-label="下一页">→</button>
+      </span>
+      <span class="vhint">← → 翻页 · 只有往后翻会播转场 · Esc 关闭</span>
+      <a class="vopen" href="#" target="_blank" rel="noopener">新标签页打开</a>
+      <button class="vclose" type="button" aria-label="关闭">关闭</button>
+    </div>
+    <iframe class="vframe" title="放映" allow="fullscreen"></iframe>
+  </div>
+</dialog>
+
 <script>
 (() => {
+  // 放映用弹窗，不跳走。原来的 href 保留：中键 / cmd 点击还是新标签页打开，
+  // 没有 JS 时也能点开。
+  const dlg = document.getElementById("viewer");
+  const frame = dlg.querySelector(".vframe");
+  dlg.querySelector(".vclose").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => { frame.src = "about:blank"; });
+  const prevBtn = dlg.querySelector(".vprev");
+  const nextBtn = dlg.querySelector(".vnext");
+  const pageLbl = dlg.querySelector(".vpage");
+  let deck = null;   // iframe 里的 Reveal 实例，同源才拿得到
+
+  const sync = () => {
+    if (!deck) return;
+    const i = deck.getIndices().h, n = deck.getTotalSlides();
+    pageLbl.textContent = (i + 1) + " / " + n;
+    prevBtn.disabled = i === 0;
+    nextBtn.disabled = i >= n - 1;
+  };
+  const go = (fn) => () => { if (deck) { deck[fn](); sync(); try { frame.contentWindow.focus(); } catch (e) {} } };
+  prevBtn.addEventListener("click", go("prev"));
+  nextBtn.addEventListener("click", go("next"));
+
+  frame.addEventListener("load", () => {
+    deck = null;
+    prevBtn.disabled = nextBtn.disabled = true;
+    pageLbl.textContent = "— / —";
+    try {
+      // 同源时把 Esc 接过来：焦点在 iframe 里的时候，父页面收不到按键，
+      // 而 reveal 自己把 Esc 用在总览模式上，不接管就关不掉弹窗。
+      frame.contentDocument.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { e.preventDefault(); dlg.close(); }
+      }, true);
+      frame.contentWindow.focus();
+      // Reveal 是异步初始化的，等它出现（最多两秒）再接上翻页按钮
+      let tries = 0;
+      const wait = setInterval(() => {
+        const R = frame.contentWindow.Reveal;
+        if (R && R.isReady && R.isReady()) {
+          clearInterval(wait);
+          deck = R;
+          R.on("slidechanged", sync);
+          sync();
+        } else if (++tries > 40) {
+          clearInterval(wait);   // 拿不到就只留键盘翻页，按钮保持禁用
+        }
+      }, 50);
+    } catch (err) { /* 跨源（file:// 下可能发生）：按钮用不了，键盘和关闭按钮仍然有效 */ }
+  });
+  document.querySelectorAll("a.play").forEach((a) => a.addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    const href = a.getAttribute("href");
+    dlg.querySelector(".vtitle").textContent = a.dataset.name;
+    dlg.querySelector(".vopen").href = href;
+    frame.src = href;
+    dlg.showModal();
+  }));
+
   const tabs = [...document.querySelectorAll(".tab")];
   const cards = [...document.querySelectorAll(".card")];
   tabs.forEach((t) => t.addEventListener("click", () => {

@@ -25,7 +25,12 @@ examples/*
 !examples/emerald-editorial/
 !examples/editorial-tri-tone/
 !examples/emerald-bento/
+!examples/tritone-bento/
+!examples/forest-bento/
 
 # npm run dev 生成的本地预览页和缩略图
 /index.html
 examples/*/thumb.jpg
+
+# build-site.mjs 的产物
+/site/

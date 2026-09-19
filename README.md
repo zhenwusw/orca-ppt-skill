@@ -1,11 +1,41 @@
 # orca-transition-skill
 
-一个给 AI Agent（Claude Code 等）用的 skill：生成带电影级转场的 HTML 演示稿。
-页与页之间按内容关系选用共享元素、形态变换、一变多、元素交接、匹配放大、匹配剪辑、遮挡剪辑等手法，
-元素级还有原地替换（同位置换内容）和文字级匹配（缩写展开、数字变化）；
-故事模式用整页照片加推近匹配讲演变史。成品是单个 HTML，浏览器直接放映，也能逐帧录成视频。
+一个给 AI Agent（Claude Code 等）用的 skill：生成**翻页时看得见连续运动**的 HTML 演示稿。
+页与页之间按内容关系选手法——共享元素、形态变换、一变多、元素交接、匹配剪辑、遮挡剪辑……
+成品是单个 HTML，浏览器直接放映。
 
-Agent 的使用说明见 [`SKILL.md`](SKILL.md)。
+## 全部示例在这里
+
+### **[ppt.orca-studio.ai](https://ppt.orca-studio.ai)**
+
+点开就能翻页，不用装任何东西。
+
+## 示例
+
+<table>
+<tr>
+<td width="33%"><a href="https://ppt.orca-studio.ai/examples/emerald-editorial/"><img src="https://ppt.orca-studio.ai/examples/emerald-editorial/thumb.jpg" alt="emerald-editorial"></a></td>
+<td width="33%"><a href="https://ppt.orca-studio.ai/examples/editorial-tri-tone/"><img src="https://ppt.orca-studio.ai/examples/editorial-tri-tone/thumb.jpg" alt="editorial-tri-tone"></a></td>
+<td width="33%"><a href="https://ppt.orca-studio.ai/examples/story-circle/"><img src="https://ppt.orca-studio.ai/examples/story-circle/thumb.jpg" alt="story-circle"></a></td>
+</tr>
+<tr>
+<td><b>emerald-editorial</b><br>一变多 · 整页推近 · 形态变换 · 遮挡剪辑</td>
+<td><b>editorial-tri-tone</b><br>共享元素 · 放大进元素内部 · 文字级匹配 · 原地替换</td>
+<td><b>story-circle</b><br>推近式匹配剪辑 · 遮挡 · 形态变换</td>
+</tr>
+<tr>
+<td><a href="https://ppt.orca-studio.ai/examples/emerald-bento/"><img src="https://ppt.orca-studio.ai/examples/emerald-bento/thumb.jpg" alt="emerald-bento"></a></td>
+<td><a href="https://ppt.orca-studio.ai/examples/forest-bento/"><img src="https://ppt.orca-studio.ai/examples/forest-bento/thumb.jpg" alt="forest-bento"></a></td>
+<td><a href="https://ppt.orca-studio.ai/examples/soft-editorial/"><img src="https://ppt.orca-studio.ai/examples/soft-editorial/thumb.jpg" alt="soft-editorial"></a></td>
+</tr>
+<tr>
+<td><b>emerald-bento</b><br>形态变换 · 元素交接</td>
+<td><b>forest-bento</b><br>一变多 · 元素交接</td>
+<td><b>soft-editorial</b><br>形态变换 · 多合一</td>
+</tr>
+</table>
+
+照片由 AI 生成。
 
 ## 安装
 
@@ -13,59 +43,10 @@ Agent 的使用说明见 [`SKILL.md`](SKILL.md)。
 npx skills add zhenwusw/orca-transition-skill -g -a claude-code
 ```
 
-其他 agent 把 `-a` 换成对应的名字。依赖（reveal.js、GSAP、playwright-core）由 agent 首次使用时在 skill 目录里 `npm install`。
-要做场景内部的 MG 动画，再装 [orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill)，两个装在同一个 skills 目录下。
+其他 agent 把 `-a` 换成对应的名字。装好之后直接说「做一份 PPT」「要苹果发布会那样的切换」就会用上。
 
-录视频还需要：
-
-- 系统已安装的 Google Chrome（脚本不会下载浏览器）
-- `ffmpeg`（在 PATH 中）
-
-## 示例
-
-浏览器打开 [`examples/story-circle/index.html`](examples/story-circle/index.html)，方向键翻页。
-录制好的视频在 `examples/story-circle/index.mp4`。
-
-录制：
-
-```bash
-node scripts/capture.mjs examples/story-circle/index.html -o out.mp4
-```
-
-## 本地预览全部示例
-
-```bash
-npm run dev
-```
-
-扫 `examples/`，生成首页 `index.html`（主题、版式、手法、页数、时长、首帧缩略图全部从稿子和 mp4 里读出来），
-然后起静态服务。打开 `localhost:3000` 就是它。
-
-只生成不起服务用 `npm run gallery`。缩略图和时长要 `ffmpeg` / `ffprobe`，没装就跳过这两项，页面照常。
-生成物是根目录的 `index.html` 和各示例里的 `thumb.jpg`，都不进版本库。
-
-## 目录
-
-| 路径 | 内容 |
-| --- | --- |
-| `SKILL.md` | skill 入口，Agent 的工作流程 |
-| `references/` | 视觉规范、主题、转场手法、故事模式、剪辑软件转场名对照 |
-| `runtime/` | 设计变量（`tokens.css`）、主题（`themes/`）和转场引擎（`engine.js`） |
-| `scripts/capture.mjs` | 逐帧录制成视频 |
-| `templates/` | 起始文件：汇报稿 `starter.html`，故事稿 `story-starter.html`；`layouts/` 是版式片段 |
-| `examples/story-circle/` | 故事模式示例 |
-| `examples/editorial-forest/` | 主题示例：Editorial Forest 配色，整页 ↔ 卡片转场 |
-| `examples/soft-editorial/` | 主题示例：Soft Editorial 配色，卡片换布局 + 多合一转场 |
-| `examples/emerald-editorial/` | 主题示例：Emerald Editorial 配色，横条一变多 + 整页推近 + 形态变换 + 遮挡剪辑 |
-| `examples/editorial-tri-tone/` | 主题示例：Editorial Tri-Tone 配色，放大进元素内部 + 文字级匹配 + 原地替换 + 胶囊元素交接 |
-| `examples/emerald-bento/` | 版式示例：Bento 网格页，方块长成 hero 格 + 整组元素交接 + hero 格撑满成整页 |
-
-示例照片由 AI 生成。
-
-## 与 orca-motion-skill 的关系
-
-[orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill) 做场景**内部**的 MG 动画（格子依次亮起、卡片弹出、拼字、数字滚动），
-本项目做场景**之间**的连贯。页面里放了 `.mo-scene` 时，`engine.js` 会在转场结束后播放场景，录制时逐帧录下来。
+要做场景**内部**的 MG 动画（格子依次亮起、卡片弹出、数字滚动），
+再装 [orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill)，两个放在同一个 skills 目录下。
 
 ## License
 
