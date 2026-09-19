@@ -68,6 +68,14 @@ html, body, .reveal { background: var(--bg); }
    没有描边就看不出这是个圆，只看得见卡片自己的边。 */
 .s-spot    { border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 0 4000px var(--scrim); }
 
+/* 整页视频：铺满画布。录制时由 capture.mjs 逐帧 seek，不靠真实播放 */
+.v-full    { left: 0; top: 0; width: var(--canvas-w); height: var(--canvas-h); object-fit: cover; }
+
+/* 匹配用的隐形锚：画面里那个形状在视频像素里、DOM 里没有对应元素时，
+   用一个看不见的框把它的位置和大小标出来，给 match-cut 当锚。
+   它不参与圆角校验（本来就没有轮廓），也不会被观众看到。 */
+.s-anchor  { opacity: 0; pointer-events: none; }
+
 /* 折线：写在 <svg> 里的 path / polyline 上。svg 本身绝对定位，viewBox 和宽高一致（单位就是像素） */
 .l-accent, .l-surface, .l-text, .l-dim { fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
 .l-accent  { stroke: var(--accent); }

@@ -2,11 +2,12 @@
 //
 // 转场分两类实现：
 //   共享元素 / 形态变换 → reveal.js auto-animate（两页都写 data-auto-animate，元素用 data-id 配对），
-//                         本文件补上旧元素退场和新元素入场（autoAnimateExtras）
+//                         本文件补上旧元素退场和新元素入场（autoAnimateExtras），
+//                         以及元素级的原地替换（data-swap）和文字级匹配（data-text）
 //   目标页写 data-st="…" 的 → 本文件的 builders：
-//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ zoom-through（整页推近）/ zoom-into（放大进元素内部）/ mask（遮挡剪辑）
+//     汇报稿：carry（元素交接）/ split（一变多）/ merge（多合一）/ match-move（匹配放大）/ match-cut（匹配剪辑，硬切）/ zoom-through（整页推近）/ zoom-into（放大进元素内部）/ mask（遮挡剪辑）
 //     故事稿：zoom-match（推近匹配）/ iris（遮挡变形）
-//     旧版：speed-match / match-cut，规范已不再使用，只为兼容旧示例保留
+//     旧版：speed-match，规范已不再使用，只为兼容旧示例保留
 //
 // data-st 页的做法：reveal 在这里是硬切。切页瞬间把上一页的内容克隆成 ghost 层，
 // 放在新页里，第一帧和上一页完全一样，所以硬切看不出来；再用 GSAP 把 ghost 交接给新内容。
@@ -18,7 +19,7 @@
   const W = 1920;
   const H = 1080;
 
-  const DURATION = { "speed-match": 0.9, "match-cut": 0.6, mask: 1.0 };
+  const DURATION = { "speed-match": 0.9, mask: 1.0 };
   const VECTOR = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
 
   // GSAP 拿到空数组会在控制台警告「target not found」，混进自检报告里。空的就跳过
@@ -141,7 +142,7 @@
   const center = (el) => [el.offsetLeft + el.offsetWidth / 2, el.offsetTop + el.offsetHeight / 2];
   // 不比 outerHTML：GSAP 会往 style 里写 opacity / transform，浏览器还会重排 style 文本
   const signature = (el) => [
-    el.tagName, el.className, el.textContent.trim(),
+    el.tagName, el.className, el.textContent.trim(), el.getAttribute("src") ?? "",
     el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight,
   ].join("|");
   const rectOf = (el) => ({ l: el.offsetLeft, t: el.offsetTop, r: el.offsetLeft + el.offsetWidth, b: el.offsetTop + el.offsetHeight });
@@ -156,31 +157,66 @@
         .fromTo(enter, { x: -vx * W, y: -vy * H }, { x: 0, y: 0, duration: d, ease }, 0);
     },
 
+    // 匹配剪辑：硬切，一帧动画都不加。
+    // 前后两页各有一个形状、大小、位置都相同的锚（data-match），切过去时观众的视线被锚钉住，
+    // 页面其余部分可以全换。引擎在这里不做动画 —— 它只负责校验两页的锚是不是真的对上了，
+    // 因为没有运动可以遮丑，差几个像素观众就会觉得「跳了一下」。
     "match-cut"(section, ghost, enter) {
-      const d = +section.dataset.stDuration || DURATION["match-cut"];
       const key = section.dataset.stMatch;
-      const a = ghost.querySelector(`[data-match="${key}"]`);
-      const b = enter.querySelector(`[data-match="${key}"]`);
-      if (!a || !b) {
-        console.error(`[orca-transition-skill] match-cut 找不到 data-match="${key}"（前后两页都要有）`);
+      if (!key) {
+        console.error(`[orca-transition-skill] match-cut 需要 data-st-match="键"，前后两页的锚写同样的 data-match="键"`);
+        ghost.remove();
         return timeline();
       }
-      const [ax, ay] = center(a);
-      const [bx, by] = center(b);
-      if (Math.hypot(ax - bx, ay - by) > 40) {
-        console.warn(`[orca-transition-skill] match-cut "${key}" 前后中心相差 ${Math.round(Math.hypot(ax - bx, ay - by))}px，匹配会不准`);
+      const sel = `[data-match="${key}"]`;
+      const olds = [...ghost.querySelectorAll(sel)];
+      const news = [...enter.querySelectorAll(sel)];
+      if (!olds.length || !news.length) {
+        console.error(`[orca-transition-skill] match-cut 找不到 ${sel}（前后两页都要有）`);
+        ghost.remove();
+        return timeline();
       }
-      // 以匹配元素为中心推近，切点处换内容，再从同样的推近程度回落。
-      // 两段位移相同、曲线同阶、时长相同，切点速度相等。
-      const half = d / 2;
-      const push = 1.12;
-      // 初始状态要在时间线外面设：时间线停在 0 秒时，0 秒处的 set 不会生效
-      gsap.set(enter, { autoAlpha: 0, scale: push, transformOrigin: `${bx}px ${by}px` });
-      return timeline()
-        .fromTo(ghost, { scale: 1, transformOrigin: `${ax}px ${ay}px` }, { scale: push, duration: half, ease: "power2.in" }, 0)
-        .set(ghost, { autoAlpha: 0 }, half)
-        .set(enter, { autoAlpha: 1 }, half)
-        .to(enter, { scale: 1, duration: half, ease: "power2.out" }, half);
+      // 锚可以是一组元素（圆和圆里的字），按整组的外接框比
+      const bbox = (els) => {
+        const r = els.map(rectOf);
+        return {
+          l: Math.min(...r.map((x) => x.l)), t: Math.min(...r.map((x) => x.t)),
+          r: Math.max(...r.map((x) => x.r)), b: Math.max(...r.map((x) => x.b)),
+        };
+      };
+      const A = bbox(olds);
+      const B = bbox(news);
+      const dim = (x) => ({ w: x.r - x.l, h: x.b - x.t, cx: (x.l + x.r) / 2, cy: (x.t + x.b) / 2 });
+      const a = dim(A);
+      const b = dim(B);
+
+      const off = Math.hypot(a.cx - b.cx, a.cy - b.cy);
+      if (off > 8) {
+        console.warn(`[orca-transition-skill] match-cut "${key}" 前后锚中心相差 ${Math.round(off)}px。硬切没有运动遮丑，对不齐就是跳帧，把两页的锚摆到同一个位置`);
+      }
+      const rel = (x, y) => Math.abs(x - y) / Math.max(x, y, 1);
+      if (rel(a.w, b.w) > 0.04 || rel(a.h, b.h) > 0.04) {
+        console.warn(`[orca-transition-skill] match-cut "${key}" 前后锚尺寸不一样（${Math.round(a.w)}×${Math.round(a.h)} → ${Math.round(b.w)}×${Math.round(b.h)}）。要变大小的是匹配放大（match-move），不是匹配剪辑`);
+      }
+      // 单个元素时连圆角一起比：胶囊切成方块，形状就不算对上。
+      // 隐形锚（.s-anchor，用来标出视频画面里那个形状的位置）本身没有轮廓，跳过这一条
+      const invisible = (el) => {
+        const cs = getComputedStyle(el);
+        return cs.visibility === "hidden" || +cs.opacity === 0;
+      };
+      if (olds.length === 1 && news.length === 1 && !invisible(olds[0]) && !invisible(news[0])) {
+        const radius = (el) => getComputedStyle(el).borderRadius;
+        if (radius(olds[0]) !== radius(news[0])) {
+          console.warn(`[orca-transition-skill] match-cut "${key}" 前后锚圆角不一样（${radius(olds[0])} → ${radius(news[0])}），轮廓对不上就看不出是同一个形状`);
+        }
+      }
+      // 形状一样还不够，里面得换了东西，否则这一刀观众根本感觉不到
+      if (olds.length === news.length && olds.every((el, i) => signature(el) === signature(news[i]))) {
+        console.warn(`[orca-transition-skill] match-cut "${key}" 前后锚完全一样，观众看不出切过页。匹配剪辑要「形状不变、内容换掉」，内容也不变就用共享元素`);
+      }
+
+      ghost.remove();
+      return timeline();
     },
 
     mask(section, ghost, enter) {
@@ -521,6 +557,222 @@
     tl.to(el, { ...spec.to }, at);
   }
 
+
+  // ───────── 元素级：原地替换（data-swap）和文字级匹配（data-text）─────────
+  // 都发生在共享元素页（前后两页都写 data-auto-animate）内部，和页面上其他元素的移动同时进行。
+  // 键相同的一对元素必须是两页的直接子元素，位置不变，只有内容换掉。
+
+  const SWAP_D = 0.5;   // 原地替换：交叉溶解时长
+  const TEXT_D = 0.9;   // 文字级匹配：留下的字移到新位置的时长
+  const PAIR_TOL = 40;  // 前后两页锚点允许的偏差（px）
+  const SWAP_SIZE_RATIO = 2.5;  // 原地替换：两个对象尺寸差到这个倍数就提醒（形状不同是正常的）
+
+  // 元素在页面坐标系里的位置（两页的元素都是 section 的直接子元素，offsetParent 相同）
+  const offsetBox = (el) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+
+  // 把纯文字元素拆成一个字一个 <span>，用来逐字测位置和逐字动画
+  function charize(el) {
+    const text = el.textContent;
+    el.textContent = "";
+    el.style.whiteSpace = "nowrap";
+    const spans = [...text].map((ch) => {
+      const s = document.createElement("span");
+      s.textContent = ch === " " ? " " : ch;
+      s.style.display = "inline-block";
+      s.style.whiteSpace = "pre";
+      el.append(s);
+      return s;
+    });
+    return { chars: [...text], spans };
+  }
+
+  // 配对：缩写展开优先（A 的每个字按顺序对上 B 里每个词的首字母），对不上就退回最长公共子序列
+  function matchChars(a, b) {
+    const eq = (x, y) => x.toLowerCase() === y.toLowerCase();
+    const initials = [];
+    for (let i = 0; i < b.length; i++) {
+      if (b[i] !== " " && (i === 0 || b[i - 1] === " ")) initials.push(i);
+    }
+    if (a.length > 1 && initials.length >= a.length && a.every((ch, i) => eq(ch, b[initials[i]]))) {
+      return a.map((_, i) => [i, initials[i]]);
+    }
+    // LCS
+    const n = a.length, m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] = eq(a[i], b[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    const pairs = [];
+    for (let i = 0, j = 0; i < n && j < m;) {
+      if (eq(a[i], b[j])) pairs.push([i++, j++]);
+      else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+      else j++;
+    }
+    return pairs;
+  }
+
+  // 数字：前后缀相同、中间是数字时，用数值插值代替逐字配对
+  const NUM_RE = /^(\D*?)(\d[\d,]*(?:\.\d+)?)(\D*)$/;
+  function numberParts(a, b) {
+    const ma = NUM_RE.exec(a.trim());
+    const mb = NUM_RE.exec(b.trim());
+    if (!ma || !mb || ma[1] !== mb[1] || ma[3] !== mb[3]) return null;
+    const dec = (mb[2].split(".")[1] || "").length;
+    const group = mb[2].includes(",");
+    const fmt = (v) => {
+      const s = group
+        ? v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec })
+        : v.toFixed(dec);
+      return mb[1] + s + mb[3];
+    };
+    return { from: +ma[2].replace(/,/g, ""), to: +mb[2].replace(/,/g, ""), fmt };
+  }
+
+  // 原地替换：旧的在原位淡出，新的在原位淡入，不动不放大
+  function swapTween(tl, ghost, next, d) {
+    gsap.set(next, { autoAlpha: 0 });
+    tl.to(ghost, { autoAlpha: 0, duration: d, ease: "power1.inOut" }, 0);
+    tl.to(next, { autoAlpha: 1, duration: d, ease: "power1.inOut" }, 0);
+  }
+
+  // 文字级匹配：配上的字从旧位置移到新位置，没配上的旧字淡出，新字从它前面那个留下来的字旁边长出来
+  function textTween(tl, ghost, next, d) {
+    const num = numberParts(ghost.textContent, next.textContent);
+    const from = offsetBox(ghost);
+    const to = offsetBox(next);
+    // 交接（藏起动画层、显出真元素）排在最后一帧之前：录制时最后一次 seek 落在
+    // (帧数 - 1) / fps，排在正好 d 的话永远执行不到，真元素会留在隐藏状态。
+    const hand = Math.max(0, d - 1 / 30);
+    gsap.set(next, { autoAlpha: 0 });
+    tl.set(next, { autoAlpha: 1 }, hand);
+    tl.set(ghost, { autoAlpha: 0 }, hand);
+
+    if (num) {
+      ghost.style.whiteSpace = "nowrap";
+      const v = { n: num.from };
+      tl.to(v, {
+        n: num.to, duration: d, ease: "power2.inOut",
+        onUpdate: () => { ghost.textContent = num.fmt(v.n); },
+      }, 0);
+      if (Math.hypot(from.x - to.x, from.y - to.y) > 1) {
+        tl.to(ghost, { x: to.x - from.x, y: to.y - from.y, duration: d, ease: "power2.inOut" }, 0);
+      }
+      return;
+    }
+
+    const A = charize(ghost);
+    const shadow = next.cloneNode(true);
+    shadow.classList.add("st-ghost-el");
+    shadow.style.visibility = "hidden";
+    next.after(shadow);
+    const B = charize(shadow);
+    const pairs = matchChars(A.chars, B.chars);
+    const sizeA = parseFloat(getComputedStyle(ghost).fontSize);
+    const sizeB = parseFloat(getComputedStyle(next).fontSize);
+    const colorB = getComputedStyle(next).color;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+
+    const movedA = new Set();
+    const arrivedB = new Set();
+    for (const [i, j] of pairs) {
+      movedA.add(i);
+      arrivedB.add(j);
+      const a = A.spans[i];
+      const b = B.spans[j];
+      tl.to(a, {
+        x: dx + b.offsetLeft - a.offsetLeft,
+        y: dy + b.offsetTop - a.offsetTop,
+        scale: sizeB / sizeA,
+        color: colorB,
+        transformOrigin: "0% 0%",
+        duration: d * 0.6, ease: "power2.inOut",
+      }, 0);
+      tl.set(a, { autoAlpha: 0 }, hand);
+    }
+    const dropped = A.spans.filter((_, i) => !movedA.has(i));
+    tl.to(dropped, { autoAlpha: 0, duration: d * 0.35, ease: "power1.in" }, 0);
+
+    // 新字从左边最近的那个留下来的字旁边长出来；一个都没留下就整体淡入
+    const anchorFor = (j) => {
+      let best = null;
+      for (const [, bj] of pairs) if (bj < j && (best === null || bj > best)) best = bj;
+      if (best === null) for (const [, bj] of pairs) if (best === null || bj < best) best = bj;
+      return best === null ? null : B.spans[best];
+    };
+    gsap.set(shadow, { visibility: "visible", autoAlpha: 1 });
+    // 长出来的字按「跟着哪个留下来的字」分组（缩写展开时就是按词分组），同一组一起长，组间错开
+    const grown = [];
+    const groupOrder = new Map();
+    B.spans.forEach((b, j) => {
+      if (arrivedB.has(j)) { gsap.set(b, { autoAlpha: 0 }); return; }
+      const anchor = anchorFor(j);
+      const gk = anchor ? B.spans.indexOf(anchor) : -1;
+      if (!groupOrder.has(gk)) groupOrder.set(gk, groupOrder.size);
+      gsap.set(b, {
+        autoAlpha: 0, transformOrigin: "0% 50%",
+        x: anchor ? anchor.offsetLeft + anchor.offsetWidth - b.offsetLeft : 0,
+        scaleX: 0.2,
+      });
+      grown.push([b, groupOrder.get(gk)]);
+    });
+    // 最后一组也要在 d 之前长完，字多时把错开量压缩，不让转场拖过总时长
+    // 留下来的字先在 0.6d 落位，剩下的字再填进去，中途才不会出现「大字挤着小字」的错位
+    const growAt = d * 0.5;
+    const growD = d * 0.35;
+    const step = Math.min(0.06, (d - growAt - growD) / Math.max(1, groupOrder.size - 1));
+    for (const [b, order] of grown) {
+      tl.to(b, { autoAlpha: 1, x: 0, scaleX: 1, duration: growD, ease: "power2.out" }, growAt + order * step);
+    }
+    tl.set(shadow, { autoAlpha: 0 }, hand);
+  }
+
+  // 找出两页里键相同的 data-swap / data-text 元素对
+  function elementPairs(section, source) {
+    const pairs = [];
+    for (const attr of ["swap", "text"]) {
+      for (const el of section.querySelectorAll(`[data-${attr}]`)) {
+        const key = el.dataset[attr];
+        const old = source.querySelector(`[data-${attr}="${key}"]`);
+        const name = attr === "swap" ? "原地替换" : "文字级匹配";
+        // 上一页没有同名元素 = 这个元素第一次出现，按普通新元素入场，不算错
+        if (!old) continue;
+        if (el.parentElement !== section || old.parentElement !== source) {
+          console.error(`[orca-transition-skill] ${name} data-${attr}="${key}" 必须写在页面的直接子元素上`);
+          continue;
+        }
+        if (el.dataset.id) {
+          console.error(`[orca-transition-skill] ${name} data-${attr}="${key}" 不要同时写 data-id，内容不同配不成共享元素`);
+        }
+        if (attr === "text" && (el.children.length || old.children.length)) {
+          console.error(`[orca-transition-skill] 文字级匹配 data-text="${key}" 只能写在纯文字元素上`);
+          continue;
+        }
+        // 前后内容一模一样 = 这个元素本来就该原地不动，不要当成一次替换
+        const same = attr === "text"
+          ? old.textContent.trim() === el.textContent.trim()
+          : old.getAttribute("src") === el.getAttribute("src") && old.className === el.className
+            && old.textContent.trim() === el.textContent.trim();
+        if (same) continue;
+        const a = offsetBox(old);
+        const b = offsetBox(el);
+        const off = attr === "swap"
+          ? Math.hypot(a.x + a.w / 2 - b.x - b.w / 2, a.y + a.h / 2 - b.y - b.h / 2)
+          : Math.hypot(a.x - b.x, a.y - b.y);
+        if (off > PAIR_TOL) {
+          console.warn(`[orca-transition-skill] ${name} data-${attr}="${key}" 前后两页相差 ${Math.round(off)}px，这个手法是「原地」换内容，位置要对齐`);
+        }
+        const ratio = (x, y) => Math.max(x, y) / Math.max(1, Math.min(x, y));
+        if (attr === "swap" && Math.max(ratio(a.w, b.w), ratio(a.h, b.h)) > SWAP_SIZE_RATIO) {
+          console.warn(`[orca-transition-skill] 原地替换 data-swap="${key}" 前后两页尺寸差了 ${SWAP_SIZE_RATIO} 倍以上（${a.w}×${a.h} → ${b.w}×${b.h}），交叉溶解会看成两个东西叠着，不是一个变成另一个`);
+        }
+        pairs.push({ attr, old, next: el });
+      }
+    }
+    return pairs;
+  }
   // auto-animate 页的补充：reveal 会让上一页没配对的元素瞬间消失，新页没配对的元素只会淡入。
   // 这里把旧元素克隆出来淡出，新元素按 data-auto-animate-delay 上浮淡入。
   function autoAnimateExtras(section, prev) {
@@ -540,6 +792,11 @@
     const sameIn = (parent) => new Set([...parent.children].filter((el) => !el.dataset.id).map(signature));
     const prevSame = sameIn(source);
     const currSame = sameIn(section);
+    // 元素级的原地替换 / 文字级匹配：旧元素照常克隆出来，但不跟着淡出，交给下面的 swapTween / textTween
+    const pairs = elementPairs(section, source);
+    const pairedOld = new Set(pairs.map((p) => p.old));
+    const pairedNew = new Set(pairs.map((p) => p.next));
+    const ghostOf = new Map();
 
     // 旧页没配对的元素克隆出来淡出。克隆不整层放在最上面或最下面，而是按旧页里的上下关系插进新页：
     // 插在「旧页里排在它前面、最近的那个配对元素」在新页里的孪生元素后面。
@@ -553,19 +810,32 @@
         cursor = section.querySelector(`:scope > [data-id="${id}"]`) ?? cursor;
         continue;
       }
-      if (!id && currSame.has(signature(child))) continue;
+      if (!id && !pairedOld.has(child) && currSame.has(signature(child))) continue;
       const clone = ghostClone(child);
       clone.classList.add("st-ghost-el");
       if (cursor) cursor.after(clone);
       else section.prepend(clone);
       cursor = clone;
-      ghosts.push(clone);
+      if (pairedOld.has(child)) ghostOf.set(child, clone);
+      else ghosts.push(clone);
+    }
+    // 替换对的旧元素压在新元素正下方，交叉溶解时层次才对
+    for (const p of pairs) {
+      const g = ghostOf.get(p.old);
+      if (g) p.next.before(g);
     }
     const tl = timeline();
     tl.fromTo(ghosts, { autoAlpha: 1, y: 0 }, { autoAlpha: 0, y: -16, duration: 0.35, ease: "power1.in" }, 0);
     const incoming = [...section.children].filter((el) =>
-      !prevIds.has(el.dataset.id) && !el.matches(".st-layer, .st-ghost-el") && !(!el.dataset.id && prevSame.has(signature(el))));
+      !prevIds.has(el.dataset.id) && !el.matches(".st-layer, .st-ghost-el") && !pairedNew.has(el)
+      && !(!el.dataset.id && prevSame.has(signature(el))));
     for (const el of incoming) enterTween(tl, el, +(el.dataset.autoAnimateDelay ?? 0.6));
+    for (const p of pairs) {
+      const g = ghostOf.get(p.old);
+      if (!g) continue;
+      const d = +p.next.dataset.duration || (p.attr === "swap" ? SWAP_D : TEXT_D);
+      (p.attr === "swap" ? swapTween : textTween)(tl, g, p.next, d);
+    }
     return tl;
   }
 
@@ -1060,6 +1330,38 @@
     if (!hasScenes(slide)) return null;
     return window.OrcaMotion.build(slide);
   }
+  // ───────── 页面里的视频 ─────────
+  // 放映模式：翻到这一页从头播，离开就停。
+  // 录制模式：全部暂停，由 __capture.seek 按毫秒设 currentTime —— 和动画一样不靠真实时间。
+  const videosOf = (slide) => [...slide.querySelectorAll("video")];
+  function prepareVideos() {
+    for (const v of document.querySelectorAll(".reveal .slides video")) {
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = "auto";
+      v.pause();
+    }
+  }
+  function playVideos(slide, delay) {
+    for (const v of document.querySelectorAll(".reveal .slides video")) {
+      if (!slide.contains(v)) { v.pause(); v.currentTime = 0; }
+    }
+    if (CAPTURE) return;
+    for (const v of videosOf(slide)) {
+      v.currentTime = 0;
+      if (delay > 0) gsap.delayedCall(delay, () => v.play().catch(() => {}));
+      else v.play().catch(() => {});
+    }
+  }
+  // seek 到某一刻后要等浏览器真的解出那一帧，否则截图拍到的是上一帧
+  const seekVideo = (v, t) =>
+    new Promise((done) => {
+      const target = Math.max(0, Math.min(t, (v.duration || 0) - 1e-3));
+      if (Math.abs(v.currentTime - target) < 1e-4 && v.readyState >= 2) return done();
+      v.addEventListener("seeked", () => done(), { once: true });
+      v.currentTime = target;
+    });
+
   function stopScene() {
     sceneCall?.kill();
     sceneCall = null;
@@ -1098,8 +1400,10 @@
     const next = sceneFor(e.currentSlide);
     next?.pause(0);
     const played = runTransition(e);
-    // 往回翻、跳页没有转场，场景直接从头播
-    startScene(e.currentSlide, played ? transitionSeconds(e.currentSlide) : 0, next);
+    // 往回翻、跳页没有转场，场景和视频直接从头播
+    const delay = played ? transitionSeconds(e.currentSlide) : 0;
+    startScene(e.currentSlide, delay, next);
+    playVideos(e.currentSlide, delay);
   }
 
   function runTransition({ currentSlide, previousSlide, indexh }) {
@@ -1133,6 +1437,7 @@
 
   prepare();
   prepareStory();
+  prepareVideos();
   Reveal.initialize({
     width: W,
     height: H,
@@ -1149,13 +1454,15 @@
   Reveal.on("ready", (e) => {
     lastIndex = e.indexh;
     startScene(e.currentSlide, 0);
+    playVideos(e.currentSlide, 0);
   });
   Reveal.on("slidechanged", onSlide);
 
   // 本次转场的 CSS 动画。暂停的动画不会自己结束，不单独记下来的话，
   // 下一次 seek 会把上一次转场的动画也倒回去，ghost 克隆时就拍到错误的状态。
   let captured = [];
-  let sceneOffset = 0;    // 场景在这一段录制里从第几毫秒开始（= 转场结束）
+  let sceneOffset = 0;    // 场景和视频在这一段录制里从第几毫秒开始（= 转场结束）
+  let videos = [];        // 这一页上的视频，逐帧 seek 用
 
   window.__capture = {
     // 切页后等两帧，让 auto-animate 把 CSS transition 挂上，再全部冻住。返回这次转场的总时长（毫秒）
@@ -1177,13 +1484,23 @@
       // 有场景动画时：停留至少要放完场景，再多停 0.8 秒看清结尾
       const sceneMs = scene ? scene.duration() * 1000 : 0;
       if (sceneMs) hold = Math.max(hold, sceneMs + 800);
+      // 有视频时：停留至少要放完视频。data-hold 写得更长就按 data-hold（片尾定格）
+      videos = videosOf(target);
+      let videoMs = 0;
+      for (const v of videos) {
+        v.pause();
+        if (v.readyState < 1) await new Promise((r) => v.addEventListener("loadedmetadata", r, { once: true }));
+        videoMs = Math.max(videoMs, v.duration * 1000);
+      }
+      if (videoMs) hold = Math.max(hold, videoMs);
       sceneOffset = end;
-      return { transition: end, hold, scene: sceneMs };
+      return { transition: end, hold, scene: sceneMs, video: videoMs };
     },
-    seek(ms) {
+    async seek(ms) {
       for (const a of captured) a.currentTime = Math.min(ms, a.effect.getComputedTiming().endTime);
       current?.time(ms / 1000);
       scene?.time(Math.max(0, ms - sceneOffset) / 1000);
+      await Promise.all(videos.map((v) => seekVideo(v, Math.max(0, ms - sceneOffset) / 1000)));
     },
     count: () => Reveal.getTotalSlides(),
   };

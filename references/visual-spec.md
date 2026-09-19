@@ -128,6 +128,44 @@
 - 两个面板：`left:120` 和 `left:1000`，`top:240 width:800 height:760`
 - 强调的一侧 `.s-accent-soft`，另一侧 `.s-surface`
 
+### 整页视频
+
+一页只放一段视频，铺满画布。用来引一段实拍素材，或者把别处录好的片段放进稿子里。
+
+```html
+<section>
+  <video class="v-full" src="../clips/apple-15s.mp4" muted playsinline></video>
+</section>
+```
+
+1. **素材先转成和稿子一样的帧率和画幅**（1920×1080 @30fps），否则录出来会抖：
+   `ffmpeg -ss <起> -to <止> -i <源> -vf "scale=1920:1080,fps=30" -c:v libx264 -crf 18 -an <出>.mp4`
+2. 放映时翻到这一页自动从头播（转场放完才开始），离开就停。视频一律静音 —— 声音在剪辑里配。
+3. 录制时 `capture.mjs` 不靠真实播放，而是按毫秒 seek 视频、等 `seeked` 再截图，所以每帧确定。
+   这一页的停留时长自动取视频长度，`data-hold` 写得更长才会在末帧多定格一会儿。
+4. **视频页不要再写别的内容。** 压在视频上的字在画面亮部读不出来，要说话就用下一页。
+   唯一的例外是隐形锚（见下）。
+5. 视频页也能当转场的上一页。最好用的是匹配剪辑：切走的时候画面是静的（末帧），
+   下一页把那个形状接住。
+
+#### 隐形锚（视频画面里的形状）
+
+匹配剪辑的锚要是 DOM 元素，但视频里那个形状只是像素。用一个看不见的框把它标出来：
+
+```html
+<video class="v-full" src="../clips/apple-15s.mp4" muted playsinline></video>
+<div data-match="pill" class="s-anchor" style="left:730px; top:386px; width:744px; height:324px;"></div>
+```
+
+框的位置和大小**从末帧上量**，别估。取一张末帧 PNG，按颜色框出那个形状的外接框：
+
+```bash
+ffmpeg -sseof -0.1 -i clip.mp4 -frames:v 1 last.png
+```
+
+`.s-anchor` 只是 `opacity: 0`，观众看不到；它不参与圆角校验（它本来就没有轮廓），
+中心和尺寸照常校验。
+
 ### 结尾页
 - `.t-display`：水平居中，`top:400`
 - 一行 `.t-body`：`top:600`，`width:1200 text-align:center left:360`

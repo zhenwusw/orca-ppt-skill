@@ -43,7 +43,7 @@ try {
 
   const total = await page.evaluate(() => window.__capture.count());
   for (let i = 0; i < total; i++) {
-    const { transition, hold, scene } = await page.evaluate((idx) => window.__capture.go(idx), i);
+    const { transition, hold, scene, video } = await page.evaluate((idx) => window.__capture.go(idx), i);
     const frames = Math.round((transition / 1000) * FPS);
     const firstFrame = n;
     for (let f = 0; f < frames; f++) {
@@ -51,8 +51,8 @@ try {
       await page.screenshot({ path: framePath() });
     }
     const holdFrames = Math.max(1, Math.round((hold / 1000) * FPS));
-    if (scene) {
-      // 页面里有场景动画（orca-motion-skill）：停留期间也逐帧 seek
+    if (scene || video) {
+      // 页面里有场景动画（orca-motion-skill）或视频：停留期间也逐帧 seek
       for (let h = 0; h < holdFrames; h++) {
         await seek(transition + (h / FPS) * 1000);
         await page.screenshot({ path: framePath() });
@@ -65,7 +65,8 @@ try {
     }
     const range = frames ? `，转场帧 ${firstFrame}–${firstFrame + frames - 1}` : "";
     const sceneNote = scene ? `，场景动画 ${(scene / 1000).toFixed(2)}s` : "";
-    console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}${sceneNote}`);
+    const videoNote = video ? `，视频 ${(video / 1000).toFixed(2)}s` : "";
+    console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，停留 ${(hold / 1000).toFixed(1)}s${range}${sceneNote}${videoNote}`);
   }
   await browser.close();
   browser = null;
