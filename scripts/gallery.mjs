@@ -7,6 +7,7 @@
 //   时长   ← ffprobe 读 index.mp4
 //   缩略图 ← ffmpeg 从 index.mp4 抽一帧
 // 用法：node scripts/gallery.mjs   （或 npm run dev）
+// 环境变量 GA_ID 有值时，生成的页面会带上 Google Analytics 代码（本地预览不设就没有）。
 import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -154,6 +155,14 @@ const page = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PPT 转场动画 · orca-transition-skill</title>
+${process.env.GA_ID ? `<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(process.env.GA_ID)}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${esc(process.env.GA_ID)}');
+</script>` : ""}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Work+Sans:wght@400;500;600&display=swap">
 <style>
 :root{--bg:#0b0b0f;--card:#16161c;--line:#23232c;--text:#f5f5f7;--dim:#8e8e98;--faint:#6e6e78;--accent:#ff7a1a}
