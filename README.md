@@ -52,12 +52,13 @@ npm run dev
 | `references/` | 视觉规范、主题、转场手法、故事模式、剪辑软件转场名对照 |
 | `runtime/` | 设计变量（`tokens.css`）、主题（`themes/`）和转场引擎（`engine.js`） |
 | `scripts/capture.mjs` | 逐帧录制成视频 |
-| `templates/` | 起始文件：汇报稿 `starter.html`，故事稿 `story-starter.html` |
+| `templates/` | 起始文件：汇报稿 `starter.html`，故事稿 `story-starter.html`；`layouts/` 是版式片段 |
 | `examples/story-circle/` | 故事模式示例 |
 | `examples/editorial-forest/` | 主题示例：Editorial Forest 配色，整页 ↔ 卡片转场 |
 | `examples/soft-editorial/` | 主题示例：Soft Editorial 配色，卡片换布局 + 多合一转场 |
 | `examples/emerald-editorial/` | 主题示例：Emerald Editorial 配色，横条一变多 + 整页推近 + 形态变换 + 遮挡剪辑 |
 | `examples/editorial-tri-tone/` | 主题示例：Editorial Tri-Tone 配色，放大进元素内部 + 文字级匹配 + 原地替换 + 胶囊元素交接 |
+| `examples/emerald-bento/` | 版式示例：Bento 网格页，方块长成 hero 格 + 整组元素交接 + hero 格撑满成整页 |
 
 示例照片由 AI 生成。
 
