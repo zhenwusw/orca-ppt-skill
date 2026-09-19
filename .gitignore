@@ -28,6 +28,7 @@ examples/*
 !examples/tritone-bento/
 !examples/forest-bento/
 !examples/spec-wall/
+!examples/forest-timeline/
 
 # 稿子引用的素材（整页视频的片源）
 !examples/_assets/

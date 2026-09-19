@@ -25,12 +25,12 @@
 </tr>
 <tr>
 <td><a href="https://ppt.orca-studio.ai/examples/spec-wall/"><img src="https://ppt.orca-studio.ai/examples/spec-wall/thumb.jpg" alt="spec-wall"></a></td>
-<td><a href="https://ppt.orca-studio.ai/examples/forest-bento/"><img src="https://ppt.orca-studio.ai/examples/forest-bento/thumb.jpg" alt="forest-bento"></a></td>
+<td><a href="https://ppt.orca-studio.ai/examples/forest-timeline/"><img src="https://ppt.orca-studio.ai/examples/forest-timeline/thumb.jpg" alt="forest-timeline"></a></td>
 <td><a href="https://ppt.orca-studio.ai/examples/soft-editorial/"><img src="https://ppt.orca-studio.ai/examples/soft-editorial/thumb.jpg" alt="soft-editorial"></a></td>
 </tr>
 <tr>
 <td><b>spec-wall</b><br>整页视频 · 匹配剪辑 · 形态变换 · 镂空聚焦</td>
-<td><b>forest-bento</b><br>一变多 · 元素交接</td>
+<td><b>forest-timeline</b><br>形态变换 · 元素交接 · 横向时间线 · 横向条形图</td>
 <td><b>soft-editorial</b><br>形态变换 · 多合一</td>
 </tr>
 </table>
