@@ -22,7 +22,10 @@ const VENDOR = [
 ];
 
 // 先跑一遍首页生成（它同时会刷新各示例的 thumb.jpg）
-execFileSync("node", [join(ROOT, "scripts/gallery.mjs")], { stdio: "inherit" });
+// GA4 的 measurement ID 不是密钥 —— 它本来就明文出现在每个用 GA 的页面源码里。
+// 构建（给线上用）默认带上，本地预览 npm run gallery 不设就不带。
+const GA_ID = process.env.GA_ID ?? "G-HY0E7GFPHH";
+execFileSync("node", [join(ROOT, "scripts/gallery.mjs")], { stdio: "inherit", env: { ...process.env, GA_ID } });
 
 if (existsSync(OUT)) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(join(OUT, "vendor"), { recursive: true });
