@@ -7,18 +7,17 @@
 //   时长   ← ffprobe 读 index.mp4
 //   缩略图 ← ffmpeg 从 index.mp4 抽一帧
 // 用法：node scripts/gallery.mjs   （或 npm run dev）
-import { readdirSync, readFileSync, statSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const EXAMPLES = join(ROOT, "examples");
-// 页面生成在仓库根目录，这样 npx serve . 之后 localhost:3000 直接就是它；
-// 缩略图放 gallery/thumbs/，两者都是生成物，不进版本库。
+// 页面生成在仓库根目录，这样 npx serve . 之后 localhost:3000 直接就是它。
+// 缩略图放进各自的示例目录（examples/<name>/thumb.jpg）—— 它本来就属于那份示例，
+// 不为它单开一个顶层目录。两者都是生成物，不进版本库。
 const PAGE = join(ROOT, "index.html");
-const OUT = join(ROOT, "gallery");
-const THUMBS = join(OUT, "thumbs");
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -48,6 +47,16 @@ const dist = (a, b) => {
   const [r1, g1, b1] = rgb(a), [r2, g2, b2] = rgb(b);
   return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
 };
+
+// 版式族：身份写在起始文件里（templates/starter.html、story-starter.html、layouts/bento.html），
+// 稿子从哪个文件复制出来就带哪个标记，不靠写稿的人记得填。
+//
+// 名字沿用 SKILL.md 的「两种模式」，不另造词。注意 standard / story 是模式，
+// 而 bento 在 visual-spec.md 里其实是「汇报稿」内部的一种页面类型，不是和它并列的模式。
+// 这里仍然把它摆成并列的一项 —— 浏览时想问的是「哪几份能看到 bento」，
+// 不是「它在规范里挂在第几级」。
+const LAYOUT_NAMES = { standard: "汇报稿", story: "故事稿", bento: "Bento" };
+const layoutName = (k) => (k ? LAYOUT_NAMES[k] || k : "未标注");
 
 function themePath(themeFile) {
   return themeFile === "tokens.css"
@@ -130,10 +139,10 @@ function parseDeck(name) {
       if (n) frames = parseInt(n, 10);
     }
     if (hasFfmpeg) {
-      const out = join(THUMBS, `${name}.jpg`);
+      const out = join(dir, "thumb.jpg");
       const ok = run("ffmpeg", ["-v", "error", "-ss", "1", "-i", mp4,
         "-frames:v", "1", "-vf", "scale=848:-1", "-q:v", "4", "-y", out]);
-      if (ok !== null && existsSync(out)) thumb = `gallery/thumbs/${name}.jpg`;
+      if (ok !== null && existsSync(out)) thumb = `examples/${name}/thumb.jpg`;
     }
   }
 
@@ -146,9 +155,6 @@ function parseDeck(name) {
   };
 }
 
-if (existsSync(OUT)) rmSync(OUT, { recursive: true, force: true });
-mkdirSync(THUMBS, { recursive: true });
-
 // 留在磁盘上但不给入口的示例
 const SKIP = new Set(["q3-report", "q3-report-v2"]);
 
@@ -158,13 +164,17 @@ const decks = readdirSync(EXAMPLES, { withFileTypes: true })
   .filter(Boolean)
   .sort((a, b) => b.mtime - a.mtime);
 
-const byTheme = new Map();
-for (const d of decks) {
-  if (!byTheme.has(d.themeFile)) byTheme.set(d.themeFile, { key: d.themeFile, label: d.themeName, count: 0 });
-  byTheme.get(d.themeFile).count += 1;
+function group(keyOf, labelOf) {
+  const m = new Map();
+  for (const d of decks) {
+    const k = keyOf(d);
+    if (!m.has(k)) m.set(k, { key: k, label: labelOf(d), count: 0 });
+    m.get(k).count += 1;
+  }
+  return [{ key: "all", label: "全部", count: decks.length },
+    ...[...m.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))];
 }
-const tabs = [{ key: "all", label: "全部", count: decks.length },
-  ...[...byTheme.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))];
+const layoutTabs = group((d) => d.layout || "unknown", (d) => layoutName(d.layout));
 
 function card(d) {
   const meta = d.seconds
@@ -173,11 +183,11 @@ function card(d) {
   const swatches = d.palette.map((c) =>
     `<span class="sw" style="background:${esc(c)}"></span>`).join("");
   const chips = d.moves.slice(0, 5).map((m) => `<span class="chip">${esc(m)}</span>`).join("");
-  const layout = d.layout ? `<span class="layout">${esc(d.layout)}</span>` : "";
+  const layout = `<span class="layout" data-std="${d.layout === "standard" || !d.layout}">${esc(layoutName(d.layout))}</span>`;
   const thumb = d.thumb
     ? `<img class="shot" src="${esc(d.thumb)}" alt="${esc(d.name)} 首帧" loading="lazy">`
     : `<div class="shot empty"><span>没有 index.mp4</span></div>`;
-  return `<article class="card" data-theme="${esc(d.themeFile)}">
+  return `<article class="card" data-layout="${esc(d.layout || "unknown")}">
   <a class="thumb" href="examples/${esc(d.name)}/">${thumb}
     <span class="hover"><span class="btn solid">放映</span></span>
   </a>
@@ -238,6 +248,7 @@ hr{border:0;height:1px;background:#1f1f27;margin:28px 0}
 .sw{width:11px;height:11px;border-radius:50%;border:1px solid rgba(255,255,255,.16)}
 .theme{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim)}
 .layout{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--accent);border:1px solid rgba(255,122,26,.45);border-radius:4px;padding:2px 7px}
+.layout[data-std="true"]{color:var(--faint);border-color:var(--line)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:#b9b9c2;background:#1e1e26;border-radius:999px;padding:4px 9px}
 .links{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--faint)}
@@ -256,7 +267,7 @@ hr{border:0;height:1px;background:#1f1f27;margin:28px 0}
 </header>
 <hr>
 <div class="tabs" role="tablist">
-${tabs.map((t, i) => `  <button class="tab" role="tab" data-filter="${esc(t.key)}" aria-selected="${i === 0}">${esc(t.label)}<span class="n">${t.count}</span></button>`).join("\n")}
+${layoutTabs.map((t, i) => `  <button class="tab" role="tab" data-filter="${esc(t.key)}" aria-selected="${i === 0}">${esc(t.label)}<span class="n">${t.count}</span></button>`).join("\n")}
 </div>
 ${hasFfmpeg ? "" : '<p class="warn">未装 ffmpeg，缩略图和时长缺失</p>'}
 <div class="grid">
@@ -270,7 +281,7 @@ ${decks.map(card).join("\n")}
   tabs.forEach((t) => t.addEventListener("click", () => {
     const k = t.dataset.filter;
     tabs.forEach((o) => o.setAttribute("aria-selected", String(o === t)));
-    cards.forEach((c) => { c.hidden = k !== "all" && c.dataset.theme !== k; });
+    cards.forEach((c) => { c.hidden = k !== "all" && c.dataset.layout !== k; });
   }));
 })();
 </script>

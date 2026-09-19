@@ -26,6 +26,6 @@ examples/*
 !examples/editorial-tri-tone/
 !examples/emerald-bento/
 
-# npm run dev 生成的本地预览页
+# npm run dev 生成的本地预览页和缩略图
 /index.html
-/gallery/
+examples/*/thumb.jpg

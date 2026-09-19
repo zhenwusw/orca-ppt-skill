@@ -42,7 +42,7 @@ npm run dev
 然后起静态服务。打开 `localhost:3000` 就是它。
 
 只生成不起服务用 `npm run gallery`。缩略图和时长要 `ffmpeg` / `ffprobe`，没装就跳过这两项，页面照常。
-生成物是根目录的 `index.html` 和 `gallery/thumbs/`，都不进版本库。
+生成物是根目录的 `index.html` 和各示例里的 `thumb.jpg`，都不进版本库。
 
 ## 目录
 
