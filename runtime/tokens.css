@@ -49,6 +49,12 @@ html, body, .reveal { background: var(--bg); }
 .t-h1      { font-size: var(--type-h1); font-weight: 700; line-height: 1.1; white-space: nowrap; }
 .t-h2      { font-size: var(--type-h2); font-weight: 600; line-height: 1.2; }
 .t-body    { font-size: var(--type-body); line-height: 1.4; color: var(--text-dim); }
+/* 小标签:页眉、页脚、编号、坐标轴刻度。**这条在 tokens 里而不是各主题里** ——
+   版式片段(templates/layouts/*)是跨主题共用的，只能用这里保证有的类；
+   放在主题里的话，没定义它的主题一打开那个版式就漏样式（clearing 就漏过）。
+   主题可以照常覆盖字体、字重、字距。 */
+.t-label   { font-size: 24px; font-weight: 500; letter-spacing: 0.14em; line-height: 1;
+             text-transform: uppercase; white-space: nowrap; }
 .t-accent  { color: var(--accent); }
 .t-dim     { color: var(--text-dim); }
 .t-on-surface { color: var(--text-on-surface); }
