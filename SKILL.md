@@ -45,6 +45,9 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
    node <skill>/scripts/capture.mjs <deck>.html -o <deck>.mp4
    ```
    输出末尾「页面报告的问题」必须为空。有报错先修。
+
+   工具要解析结果时加 `--json <报告>.json`：同样的内容（页面自报的问题、每页的转场帧区间
+   和时长），但是机器可读的。**别去解析 stdout** —— 那是给人看的，措辞随时会改。
 7. **看视频**：先按正常速度完整看一遍（抽帧拼图代替不了这一步，太快的转场在拼图里看着是连续的）。
    再按 capture 打印的「转场帧」区间抽帧，逐条对照 `transitions.md` 末尾的「自检标准」。
    有问题回第 5 步改。
@@ -66,7 +69,7 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 | `runtime/tokens.css` | 设计变量和样式类（默认主题）。不要改，也不要在稿子里覆盖 |
 | `runtime/themes/` | 其他主题，只覆盖设计变量。可以按 `references/themes.md` 新建 |
 | `runtime/engine.js` | reveal 初始化 + 各种转场的实现 + 录制接口 |
-| `scripts/capture.mjs` | 逐帧录视频（系统 Chrome，不下载浏览器），打印每次转场的帧区间 |
+| `scripts/capture.mjs` | 逐帧录视频（系统 Chrome，不下载浏览器），打印每次转场的帧区间；`--json` 出机器可读报告 |
 | `templates/starter.html` | 汇报稿起始文件 |
 | `templates/story-starter.html` | 故事稿起始文件 |
 | `examples/story-circle/` | 故事模式示例（电话 → 相机 → 电视） |

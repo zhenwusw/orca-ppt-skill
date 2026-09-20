@@ -1,9 +1,13 @@
 // 把一份演示稿逐帧录成视频：每帧 seek 到确定时刻再截图，不依赖真实时间。
-// 用法：node scripts/capture.mjs <deck.html> [-o out.mp4] [--fps 30]
+// 用法：node scripts/capture.mjs <deck.html> [-o out.mp4] [--fps 30] [--json report.json]
 // 每页的停留时长读 <section data-hold="秒">，默认 1.5。
+//
+// --json 写一份机器可读的录制报告：页面自报的问题、每页的转场帧区间、时长。
+// 给工具用的（比如 orca-pptcode 的自检闸），人看 stdout 就行。
+// 两份内容一致，但 stdout 的措辞随时可能改，别去解析它。
 import { chromium } from "playwright-core";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, copyFileSync, mkdtempSync } from "node:fs";
+import { mkdirSync, rmSync, copyFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -18,8 +22,11 @@ if (!deck) {
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const FPS = +opt("--fps", 30);
 const out = path.resolve(opt("-o", deck.replace(/\.html?$/, "") + ".mp4"));
+const jsonOut = args.includes("--json") ? path.resolve(opt("--json")) : null;
 
 const framesDir = mkdtempSync(path.join(tmpdir(), "orca-transition-capture-"));
+// 每页一条，给 --json 用
+const slides = [];
 let n = 0;
 const framePath = () => path.join(framesDir, String(n++).padStart(5, "0") + ".png");
 
@@ -63,6 +70,16 @@ try {
       await page.screenshot({ path: still });
       for (let h = 1; h < holdFrames; h++) copyFileSync(still, framePath());
     }
+    slides.push({
+      index: i,
+      transitionMs: transition,
+      holdMs: hold,
+      // 这一页的转场占了哪几帧（闭区间）。没有转场时为 null —— 匹配剪辑就是这种，
+      // 它是硬切，本来就没有转场帧，别拿帧差量去验它。
+      transitionFrames: frames ? { from: firstFrame, to: firstFrame + frames - 1 } : null,
+      sceneMs: scene || 0,
+      videoMs: video || 0,
+    });
     const range = frames ? `，转场帧 ${firstFrame}–${firstFrame + frames - 1}` : "";
     const sceneNote = scene ? `，场景动画 ${(scene / 1000).toFixed(2)}s` : "";
     const videoNote = video ? `，视频 ${(video / 1000).toFixed(2)}s` : "";
@@ -81,5 +98,14 @@ try {
   await browser?.close().catch(() => {});
   rmSync(framesDir, { recursive: true, force: true });
 }
+if (jsonOut) {
+  mkdirSync(path.dirname(jsonOut), { recursive: true });
+  writeFileSync(
+    jsonOut,
+    JSON.stringify({ version: 1, deck: path.resolve(deck), out, fps: FPS, frames: n, problems, slides }, null, 2),
+  );
+}
+
 if (problems.length) console.log("\n页面报告的问题：\n" + problems.join("\n"));
 console.log(`\n${n} 帧 → ${out}`);
+if (jsonOut) console.log(`录制报告 → ${jsonOut}`);
