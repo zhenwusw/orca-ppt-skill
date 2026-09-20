@@ -41,3 +41,6 @@ examples/*/thumb.jpg
 
 # build-site.mjs 的产物
 /site/
+
+# 验证配色时渲的组合样张（theme--palette.jpg），不进仓库
+runtime/themes/samples/*--*.jpg

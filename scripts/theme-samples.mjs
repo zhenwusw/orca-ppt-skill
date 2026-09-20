@@ -27,6 +27,22 @@ const themes = readdirSync(THEMES)
   .map((name) => name.replace(/\.css$/, ""))
   .sort();
 
+/** 主题头里写的「默认配色」。没写就用第一个配色 —— 不配色的话页面是没有颜色的。 */
+function defaultPalette(theme) {
+  const head = readFileSync(join(THEMES, `${theme}.css`), "utf8").slice(0, 600);
+  return (head.match(/默认配色[:：]\s*([a-z0-9-]+)/) || [])[1];
+}
+
+/**
+ * 要渲哪些组合。默认每个主题一张（配它的默认配色）——
+ * 选择器上主题是卡片网格，配色是第二个小选择，不做成 主题×配色 的笛卡尔积。
+ *
+ * `--palette <名字>` 可以把全部主题换成同一套配色渲一遍，用来看这套配色配不配得上。
+ */
+const forced = process.argv.includes("--palette")
+  ? process.argv[process.argv.indexOf("--palette") + 1]
+  : undefined;
+
 if (themes.length === 0) {
   console.error("runtime/themes 下一个主题都没有");
   process.exit(1);
@@ -49,8 +65,18 @@ page.on("pageerror", (e) => problems.push(e.message));
 for (const theme of themes) {
   // 临时页和模板放同一个目录 —— 样张里的相对路径(tokens.css、reveal 的 reset)
   // 是按那个位置写的,换个地方全失效。
+  const palette = forced ?? defaultPalette(theme);
+  if (!palette) {
+    console.log(`${theme.padEnd(22)} 跳过：主题头里没写「默认配色」`);
+    continue;
+  }
   const scratch = join(SAMPLES, `.${theme}.tmp.html`);
-  writeFileSync(scratch, template.replace("{{THEME}}", `../${theme}.css`));
+  writeFileSync(
+    scratch,
+    template
+      .replace("{{THEME}}", `../${theme}.css`)
+      .replace("{{PALETTE}}", `../../palettes/${palette}.css`),
+  );
   try {
     await page.goto(pathToFileURL(scratch).href);
     await page.waitForFunction(() => window.Reveal?.isReady?.());
@@ -59,11 +85,11 @@ for (const theme of themes) {
     // 排版算完再截。reveal 就绪和布局落定之间还差一拍缩放计算。
     await page.waitForFunction(() => document.querySelector('.slides > section.present') !== null);
     await page.screenshot({
-      path: join(SAMPLES, `${theme}.jpg`),
+      path: join(SAMPLES, forced ? `${theme}--${palette}.jpg` : `${theme}.jpg`),
       type: "jpeg",
       quality: 88,
     });
-    console.log(`${theme.padEnd(22)} ✓`);
+    console.log(`${theme.padEnd(22)} ✓  配色 ${palette}`);
   } finally {
     rmSync(scratch, { force: true });
   }

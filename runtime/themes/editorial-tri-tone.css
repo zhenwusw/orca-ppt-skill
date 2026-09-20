@@ -1,21 +1,12 @@
-/* 主题：Editorial Tri-Tone（配色和字体取自 beautiful-html-templates/editorial-tri-tone）
+/* 主题：Editorial Tri-Tone（字体取自 beautiful-html-templates/editorial-tri-tone）
  * 标签：creative
  * 一句话：品牌介绍、创意提案 —— 刊物感，有态度
+ * 默认配色：blush
  * 在 tokens.css 之后引入。规则见 references/themes.md。
- *
- * 变量映射：
- *   --bg          腮红粉画布          --surface     深酒红（大面板、整页酒红底）
- *   --surface-2   奶油黄（卡片）       --accent      深奶油黄（强调条、图表重点柱、大数字）
- *   --accent-soft 更深的奶油黄        --text / --text-dim  酒红 / 半透酒红
- *   --text-on-surface 奶油黄（酒红面板上的文字）
  *
  * 原作是三色闭环（粉 / 黄 / 酒红），本主题多两个深黄（accent / accent-soft），都是奶油黄的暗档。
  * 分成三档是因为规范要求 .s-accent 和 .s-surface-2 能区分 —— 同一个色值会让强调色面积上限失去意义。
  * --text-dim 用的是酒红的半透明版，不是第四个颜色 —— 原作在深底上的分隔线也是这么做的。
- *
- * 可以互变的颜色：accent ↔ accent-soft ↔ surface-2（都是奶油黄一系）。
- * 酒红（深）和奶油黄 / 腮红粉（浅）之间**不能变色** —— 中间帧会经过浑浊的橄榄色。
- * 形态变换、一变多、多合一跨深浅两色时，只动形状和位置，颜色保持不变。
  *
  * 背景是浅色（粉）：满屏酒红用「整页 ↔ 卡片」组合里的整页形状做。
  * 遮挡剪辑写 data-st-mask-color="surface"，满屏酒红，戏剧性比默认的黄色强得多。
@@ -35,15 +26,6 @@
 @import url("../fonts/fonts.css");
 
 :root {
-  --bg: #f2b6c6;
-  --surface: #7a1f35;
-  --surface-2: #f2d86a;
-  --text: #7a1f35;
-  --text-dim: rgba(122, 31, 53, 0.62);
-  --accent: #e3c24a;
-  --accent-soft: #cfa92e;
-  --text-on-surface: #f2d86a;
-
   --radius-s: 999px;
   --radius-m: 28px;
   --radius-l: 32px;

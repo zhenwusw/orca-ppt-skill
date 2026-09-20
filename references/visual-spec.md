@@ -65,6 +65,11 @@
 
 文字颜色类 `.t-on-surface`：放在 `.s-surface` 形状上面的文字用它。默认主题下和普通文字同色，浅色主题下会变成浅色。
 
+文字颜色类 `.t-on-accent`：放在 `.s-accent` / `.s-accent-soft` 上面的文字用它。
+**强调块上的文字一律加它**，不要靠继承 `--text` —— 全局只有一个文字色的话，
+总有一套配色的字会在强调色上消失（clearing 的白字压在浅黄上只有 1.24:1，
+`npm run palettes` 抓到过这个）。
+
 - 形状元素写 `left top width height`。`.s-dot` 的宽高必须相等。
 - `.s-spot` 的 `left top width height` 是**洞**的位置和大小，不是幕布的。一页最多一个洞，
   放在 section 的最后（压在内容之上）。
@@ -280,7 +285,7 @@ Bento 的格子天生带 `data-split` / `data-zoom` 锚点，接一变多和放�
 | `chart` | 柱状图，占横长格或 hero 格 | `.s-accent` 柱 + 轴，写 `data-enter="grow-up"` |
 | `badge` | 小标签 + 数字 | `.t-label` + `.t-display` |
 | `quote` | 一句短引文 + 出处 | `.t-h2` + `.t-label` |
-| `highlight` | 满格强调底 + 一个数字，一页最多一个 | **`.s-accent-soft`** 格 + `.t-display` |
+| `highlight` | 满格强调底 + 一个数字，一页最多一个 | **`.s-accent-soft`** 格 + `.t-display .t-on-accent` |
 
 **highlight 格铺底只能用 `.s-accent-soft`，不要用 `.s-accent`。**
 后者的圆角取自 `--radius-s`，在把 `--radius-s` 设成胶囊形的主题里（比如 Editorial Tri-Tone 的 999px）
