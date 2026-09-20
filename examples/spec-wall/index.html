@@ -21,7 +21,7 @@
 <div class="slides">
 
   <!-- 1 封面 -->
-  <section data-hold="2.5">
+  <section data-hold="2.5" data-page="cover">
     <p class="t-body" style="left:120px; top:80px;">Orca Studio · 器物志</p>
     <p class="t-display" style="left:120px; top:400px;">Model 302</p>
     <p class="t-body" style="left:120px; top:620px; width:1000px;">一台 1937 年的桌面电话。先看它，再拆它。</p>
@@ -29,7 +29,7 @@
   </section>
 
   <!-- 2 整页视频：一页只放视频，不压任何字（规范「整页视频」第 4 条） -->
-  <section data-st="mask" data-st-direction="up" data-hold="5">
+  <section data-st="mask" data-st-direction="up" data-hold="5" data-page="video">
     <video class="v-full" src="../_assets/clips/dial.mp4" muted playsinline></video>
     <!-- 隐形锚：拨号盘外圈在末帧上的外接框，用 ffmpeg 导出末帧量出来的，不是估的 -->
     <div data-match="dial" class="s-anchor" style="left:745px; top:355px; width:450px; height:400px;"></div>
@@ -46,7 +46,7 @@
   </section>
 
   <!-- 4 参数墙（bento 密集版）+ 镂空聚焦第一次出现：幕布淡入，内容不跟着动 -->
-  <section data-auto-animate data-auto-animate-duration="1.2" data-hold="3.5">
+  <section data-auto-animate data-auto-animate-duration="1.2" data-hold="3.5" data-page="bento">
     <p class="t-h1" data-auto-animate-delay="0.8" style="left:120px; top:80px;">整机参数。</p>
 
     <div data-id="hero" class="s-accent-soft" style="left:120px; top:200px; width:800px; height:520px;"></div>
@@ -91,7 +91,7 @@
   </section>
 
   <!-- 5 同一面墙，只有光斑走到另一格。其余元素前后完全一样，原地不动 -->
-  <section data-auto-animate data-hold="3">
+  <section data-auto-animate data-hold="3" data-page="bento">
     <p class="t-h1" style="left:120px; top:80px;">整机参数。</p>
 
     <div data-id="hero" class="s-accent-soft" style="left:120px; top:200px; width:800px; height:520px;"></div>
