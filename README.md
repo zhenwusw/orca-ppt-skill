@@ -1,4 +1,4 @@
-# orca-transition-skill
+# orca-ppt-skill
 
 一个给 AI Agent（Claude Code 等）用的 skill：生成**翻页时看得见连续运动**的 HTML 演示稿。
 页与页之间按内容关系选手法——共享元素、形态变换、一变多、元素交接、匹配剪辑、遮挡剪辑……
@@ -40,7 +40,7 @@
 ## 安装
 
 ```bash
-npx skills add zhenwusw/orca-transition-skill -g -a claude-code
+npx skills add zhenwusw/orca-ppt-skill -g -a claude-code
 ```
 
 其他 agent 把 `-a` 换成对应的名字。装好之后直接说「做一份 PPT」「要苹果发布会那样的切换」就会用上。
