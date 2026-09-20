@@ -56,7 +56,10 @@ const dist = (a, b) => {
 // 而 bento 在 visual-spec.md 里其实是「汇报稿」内部的一种页面类型，不是和它并列的模式。
 // 这里仍然把它摆成并列的一项 —— 浏览时想问的是「哪几份能看到 bento」，
 // 不是「它在规范里挂在第几级」。
-const LAYOUT_NAMES = { standard: "汇报稿", story: "故事稿", bento: "Bento" };
+// 只有两种**模式**（SKILL.md 的「两种模式」，对应两个起始文件）。
+// Bento、时间线这些是**页型**，走 data-tags —— 它们是叠加的，一份稿子可以有好几种，
+// 不该和模式挤在一个互斥的枚举里。
+const LAYOUT_NAMES = { standard: "汇报稿", story: "故事稿" };
 const layoutName = (k) => (k ? LAYOUT_NAMES[k] || k : "未标注");
 
 function parseDeck(name) {
@@ -72,6 +75,10 @@ function parseDeck(name) {
   // 版式标记读 <html data-layout>。以前从「转场计划」注释里读「版式 xxx」——
   // 那个注释多数稿子根本没有，结果每一份都显示「未标注」，这段等于没在跑。
   const layout = (html.match(/<html[^>]*\bdata-layout="([a-z0-9-]+)"/) || [])[1] || null;
+  // 页型标签：空格分隔，一份稿子可以有好几个。
+  const pageTags = ((html.match(/<html[^>]*\bdata-tags="([^"]*)"/) || [])[1] || "")
+    .split(/\s+/)
+    .filter(Boolean);
   const moves = [];
   for (const m of planBlock.matchAll(/手法：([^\n]+)/g)) {
     // 「整页推近            from：…」→ 取到两个以上空格之前
