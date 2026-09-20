@@ -3,7 +3,7 @@
 // 每页的停留时长读 <section data-hold="秒">，默认 1.5。
 //
 // --json 写一份机器可读的录制报告：页面自报的问题、每页的转场帧区间、时长。
-// 给工具用的（比如 orca-pptcode 的自检闸），人看 stdout 就行。
+// 给工具用的（比如 orca-ppt 的自检闸），人看 stdout 就行。
 // 两份内容一致，但 stdout 的措辞随时可能改，别去解析它。
 import { chromium } from "playwright-core";
 import { execFileSync } from "node:child_process";
