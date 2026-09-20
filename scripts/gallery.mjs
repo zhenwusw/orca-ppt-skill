@@ -69,7 +69,9 @@ function parseDeck(name) {
   const pages = (html.match(/<section[\s>]/g) || []).length;
 
   const planBlock = (html.match(/<!--[^]*?转场计划[^]*?-->/) || [""])[0];
-  const layout = (planBlock.match(/版式\s*([a-z0-9-]+)/) || [])[1] || null;
+  // 版式标记读 <html data-layout>。以前从「转场计划」注释里读「版式 xxx」——
+  // 那个注释多数稿子根本没有，结果每一份都显示「未标注」，这段等于没在跑。
+  const layout = (html.match(/<html[^>]*\bdata-layout="([a-z0-9-]+)"/) || [])[1] || null;
   const moves = [];
   for (const m of planBlock.matchAll(/手法：([^\n]+)/g)) {
     // 「整页推近            from：…」→ 取到两个以上空格之前
