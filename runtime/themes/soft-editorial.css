@@ -15,7 +15,7 @@
  *
  * 本主题新增的类（只在本主题下有效）：
  *   .t-label  无衬线小标签，24px：页眉、页脚、卡片编号、图表标题 */
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Work+Sans:wght@400;500&display=swap");
+@import url("../fonts/fonts.css");
 
 :root {
   --bg: #f2eedf;

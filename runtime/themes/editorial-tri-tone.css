@@ -30,7 +30,7 @@
  *   .t-serif  换成 Instrument Serif 斜体，不带字号 —— 叠加在已有字号类上用，
  *             比如 class="t-display t-serif" 做章节数字，class="t-h2 t-serif" 做年份。
  *             章节数字配文字级匹配（data-text）做 01 → 02 → 03，是本主题的招牌转场 */
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("../fonts/fonts.css");
 
 :root {
   --bg: #f2b6c6;

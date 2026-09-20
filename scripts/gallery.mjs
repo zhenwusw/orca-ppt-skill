@@ -163,7 +163,8 @@ ${process.env.GA_ID ? `<!-- Google tag (gtag.js) -->
   gtag('js', new Date());
   gtag('config', '${esc(process.env.GA_ID)}');
 </script>` : ""}
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Work+Sans:wght@400;500;600&display=swap">
+<!-- 本地字体：这个页面和 site/ 都不该依赖公网，见 scripts/fetch-fonts.mjs -->
+<link rel="stylesheet" href="runtime/fonts/fonts.css">
 <style>
 :root{--bg:#0b0b0f;--card:#16161c;--line:#23232c;--text:#f5f5f7;--dim:#8e8e98;--faint:#6e6e78;--accent:#ff7a1a}
 *{box-sizing:border-box}

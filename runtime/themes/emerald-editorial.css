@@ -24,7 +24,7 @@
  *   .t-label       Manrope 大写小标签，24px：页眉、页脚、眉题、编号
  *   .s-rule        4px 海军蓝实线（上边框）：段落分隔、列表行线、卡片顶线。用时写 width，不写 height
  *   .s-rule-double 上下各一条 4px 实线，中间留 3px：原作的双横线装饰。用时写 width 和 height:11px */
-@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,700;6..96,800;6..96,900&family=Manrope:wght@500;700;800&display=swap");
+@import url("../fonts/fonts.css");
 
 :root {
   --bg: #3cd896;

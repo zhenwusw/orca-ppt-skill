@@ -56,7 +56,19 @@
 
 - `--radius-s` `--radius-m` `--radius-l`：可以改小改大，`--radius-full` 不动。
 - `--font`：必须带退路字体，最后要有能显示中文的字体（`"PingFang SC"` 或 `"Songti SC"`）。
-- 网络字体用 `@import url("https://fonts.googleapis.com/…")` 写在文件开头。断网时退回退路字体，版面不能因此错乱。
+  这一条不是防万一——库里的西文字体**根本没有中文字形**，中文永远落到这条退路上。
+- **字体只用本地的**：文件开头写 `@import url("../fonts/fonts.css");`，不许再 `@import`
+  Google Fonts。理由有三条，最要紧的是第三条：
+
+  1. 断网或被墙时 `@import` 会阻塞渲染，首屏白一段；
+  2. 字体晚到一帧，`capture.mjs` 录下来的就不是最终的样子；
+  3. `runtime/fonts/` 里每个 `@font-face` 都带 `unicode-range`，把拉丁交给西文字体、
+     中文交给退路里的 PingFang。**两边都拿到确定的字形，版面才不会跳** —— `.t-display`
+     `.t-h1` 是 `nowrap` + 固定字号，规范里的文字宽度估算全建立在固定字形上，字宽一变就溢出。
+
+  要用 `runtime/fonts/` 里没有的字体，先往 `scripts/fetch-fonts.mjs` 的 `FAMILIES` 里加一行，
+  跑 `node scripts/fetch-fonts.mjs`，产物进仓库。**字重要把 400 也带上** —— 没套 `.t-*` 类的
+  零散文字会落到基础字重，少一档浏览器就自己合成一个假的，笔画粗细和真字重对不上。
 
 ### 3. 调整五个字号类的字体、字重、行高、字距
 

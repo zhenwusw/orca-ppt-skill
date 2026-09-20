@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node scripts/gallery.mjs && npx serve .",
     "gallery": "node scripts/gallery.mjs",
-    "capture": "node scripts/capture.mjs"
+    "capture": "node scripts/capture.mjs",
+    "fonts": "node scripts/fetch-fonts.mjs"
   },
   "repository": {
     "type": "git",

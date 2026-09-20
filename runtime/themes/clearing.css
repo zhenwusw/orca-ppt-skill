@@ -11,7 +11,7 @@
  * 黄色只给主角用：整条片子里它代表同一个东西，不要拿来装饰。
  *
  * 本主题没有新增类。场景里的图形类（.mo-*）由 orca-motion-skill 的 motion.css 提供，也只用这些变量。 */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap");
+@import url("../fonts/fonts.css");
 
 :root {
   --bg: #2d3de0;
