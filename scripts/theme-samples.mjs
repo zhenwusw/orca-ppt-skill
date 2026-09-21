@@ -20,9 +20,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const THEMES = join(ROOT, "runtime", "themes");
 const SAMPLES = join(THEMES, "samples");
+const PALETTES = join(ROOT, "runtime", "palettes");
 const TEMPLATE = join(SAMPLES, "sample.html");
 
-const themes = readdirSync(THEMES)
+const allThemes = readdirSync(THEMES)
   .filter((name) => name.endsWith(".css"))
   .map((name) => name.replace(/\.css$/, ""))
   .sort();
@@ -33,15 +34,48 @@ function defaultPalette(theme) {
   return (head.match(/默认配色[:：]\s*([a-z0-9-]+)/) || [])[1];
 }
 
+/** `--x a,b` 的值；没给就是 undefined。 */
+function flag(name) {
+  const i = process.argv.indexOf(`--${name}`);
+  return i === -1 ? undefined : process.argv[i + 1];
+}
+
 /**
  * 要渲哪些组合。默认每个主题一张（配它的默认配色）——
  * 选择器上主题是卡片网格，配色是第二个小选择，不做成 主题×配色 的笛卡尔积。
  *
- * `--palette <名字>` 可以把全部主题换成同一套配色渲一遍，用来看这套配色配不配得上。
+ * `--palette <名字[,名字…]|all>` 换配色渲，产物是 <主题>--<配色>.jpg（不进仓库）：
+ *   --palette morandi                 这套配色配得上哪些主题
+ *   --theme clearing --palette all    锁一个主题，把全部配色摆开比 —— 差别只剩颜色
+ * `--theme <名字[,名字…]>` 只渲这些主题。
  */
-const forced = process.argv.includes("--palette")
-  ? process.argv[process.argv.indexOf("--palette") + 1]
-  : undefined;
+const list = (v) => v.split(",").map((s) => s.trim()).filter(Boolean);
+
+const themes = flag("theme") ? list(flag("theme")) : allThemes;
+for (const theme of themes) {
+  if (!allThemes.includes(theme)) {
+    console.error(`没有这个主题：${theme}（有的是 ${allThemes.join("、")}）`);
+    process.exit(1);
+  }
+}
+
+const allPalettes = readdirSync(PALETTES)
+  .filter((name) => name.endsWith(".css"))
+  .map((name) => name.replace(/\.css$/, ""))
+  .sort();
+
+const forcedArg = flag("palette");
+const forcedList = !forcedArg
+  ? undefined
+  : forcedArg === "all"
+    ? allPalettes
+    : list(forcedArg);
+for (const palette of forcedList ?? []) {
+  if (!allPalettes.includes(palette)) {
+    console.error(`没有这套配色：${palette}（有的是 ${allPalettes.join("、")}）`);
+    process.exit(1);
+  }
+}
 
 if (themes.length === 0) {
   console.error("runtime/themes 下一个主题都没有");
@@ -62,10 +96,14 @@ const problems = [];
 page.on("console", (m) => ["error", "warning"].includes(m.type()) && problems.push(m.text()));
 page.on("pageerror", (e) => problems.push(e.message));
 
+let count = 0;
+
 for (const theme of themes) {
+  const palettes = forcedList ?? [defaultPalette(theme)];
+
+for (const palette of palettes) {
   // 临时页和模板放同一个目录 —— 样张里的相对路径(tokens.css、reveal 的 reset)
   // 是按那个位置写的,换个地方全失效。
-  const palette = forced ?? defaultPalette(theme);
   if (!palette) {
     console.log(`${theme.padEnd(22)} 跳过：主题头里没写「默认配色」`);
     continue;
@@ -85,14 +123,16 @@ for (const theme of themes) {
     // 排版算完再截。reveal 就绪和布局落定之间还差一拍缩放计算。
     await page.waitForFunction(() => document.querySelector('.slides > section.present') !== null);
     await page.screenshot({
-      path: join(SAMPLES, forced ? `${theme}--${palette}.jpg` : `${theme}.jpg`),
+      path: join(SAMPLES, forcedList ? `${theme}--${palette}.jpg` : `${theme}.jpg`),
       type: "jpeg",
       quality: 88,
     });
+    count += 1;
     console.log(`${theme.padEnd(22)} ✓  配色 ${palette}`);
   } finally {
     rmSync(scratch, { force: true });
   }
+}
 }
 
 await browser.close();
@@ -100,4 +140,4 @@ if (problems.length > 0) {
   console.log(`\n渲染时的告警(${problems.length} 条):`);
   for (const problem of [...new Set(problems)].slice(0, 10)) console.log("  " + problem);
 }
-console.log(`\n${themes.length} 张样张 → ${SAMPLES}`);
+console.log(`\n${count} 张样张 → ${SAMPLES}`);

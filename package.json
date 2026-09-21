@@ -9,7 +9,8 @@
     "gallery": "node scripts/gallery.mjs",
     "capture": "node scripts/capture.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
-    "palettes": "node scripts/check-palettes.mjs"
+    "palettes": "node scripts/check-palettes.mjs",
+    "deck": "node scripts/check-deck.mjs"
   },
   "repository": {
     "type": "git",

@@ -48,9 +48,13 @@
       右栏。**文字色和底色的配对按 visual-spec.md 来**:.t-on-surface 是配 .s-surface 的,
       不是配 .s-surface-2 —— 用错的话,浅色面板的主题里那行字就看不见了(踩过)。
       所以 --surface-2 在这儿用它本来的用途:图表的普通柱,纯色块,上面不放字。
+
+      `.t-metric` 落在面板上**必须再加 .t-on-surface**:它自己的颜色是 --accent-text
+      (强调色的文字档,是给页面底准备的深色),压在深面板上就是深字压深底。
+      这条规范早就写着,样张漏了 —— 以前没露馅是因为当时 .t-metric 绑的是亮色 --accent。
     -->
     <div class="s-surface" style="left:1100px; top:180px; width:700px; height:460px;"></div>
-    <p class="t-metric" style="left:1150px; top:230px;">68%</p>
+    <p class="t-metric t-on-surface" style="left:1150px; top:230px;">68%</p>
     <p class="t-body t-on-surface" style="left:1150px; top:540px; width:600px;">of accounts opened</p>
 
     <div class="s-accent-soft" style="left:1100px; top:700px; width:700px; height:150px;"></div>

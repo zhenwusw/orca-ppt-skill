@@ -114,6 +114,7 @@ function parseDeck(name) {
     name, title, layout, pages, moves, seconds, thumb,
     mtime: statSync(htmlPath).mtimeMs,
     hasVideo: existsSync(mp4),
+    hasTutorial: existsSync(join(dir, "tutorial.html")),
   };
 }
 
@@ -154,6 +155,7 @@ function card(d) {
       <a class="name play" data-name="${esc(d.name)}" href="examples/${esc(d.name)}/">${esc(d.name)}</a>
       <span class="meta">${esc(meta)}</span>
     </div>
+    ${d.hasTutorial ? `<p><a href="examples/${esc(d.name)}/tutorial.html">动画拆解与提示词 →</a></p>` : ""}
   </div>
 </article>`;
 }

@@ -7,6 +7,12 @@
   <link rel="stylesheet" href="{{ROOT}}/node_modules/reveal.js/dist/reset.css">
   <link rel="stylesheet" href="{{ROOT}}/node_modules/reveal.js/dist/reveal.css">
   <link rel="stylesheet" href="{{ROOT}}/runtime/tokens.css">
+  <!-- 用主题时,**两行都要引,顺序不能反**:
+         <link rel="stylesheet" href="{{ROOT}}/runtime/themes/<主题>.css">
+         <link rel="stylesheet" href="{{ROOT}}/runtime/palettes/<配色>.css">
+       主题只给字体和圆角,**颜色全在配色文件里**。只引主题不引配色,整份稿子会退回
+       tokens.css 的默认深底橙色 —— 字体对了颜色全错,而且不报错。
+       配色用主题头里写的「默认配色」,或者换任意一套(runtime/palettes/ 下九套,通用)。 -->
 </head>
 <body>
 <div class="reveal">

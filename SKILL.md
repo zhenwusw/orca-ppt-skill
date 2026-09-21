@@ -38,9 +38,21 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
    读者看出来的关系都是假的。
 4. **写转场计划**：每次翻页一行，先写两页的「关系」，再选手法。计划作为 HTML 注释放进文件。
 5. **写页面**：汇报稿从 `templates/starter.html` 开始，故事稿从 `templates/story-starter.html` 开始，把 `{{ROOT}}` 换成
-   这份 HTML 到本 skill 根目录的相对路径。用主题时，在 `tokens.css` 后面引入主题文件，
-   先读主题文件开头的注释（可以互变的颜色、新增的类）。
-6. **录制**：
+   这份 HTML 到本 skill 根目录的相对路径。用主题时，在 `tokens.css` 后面引入**两个**文件，
+   顺序不能反：`runtime/themes/<主题>.css` 再 `runtime/palettes/<配色>.css`。
+   **主题只给字体和圆角，颜色全在配色文件里** —— 只引主题不引配色，整份稿子会退回
+   `tokens.css` 的默认深底橙色，字体对了颜色全错，而且不报错（示例稿踩过一次）。
+   配色用主题头里写的「默认配色」，或者换任意一套（九套通用，任意配色配任意主题）。
+   先读主题和配色文件开头的注释（可以互变的颜色、新增的类）。
+6. **核版式**：
+   ```bash
+   node <skill>/scripts/check-deck.mjs <deck>.html
+   ```
+   核的是 `visual-spec.md` 里那些写死了数值的规则 —— 安全区、强调色面积、一页最多一个
+   `.t-metric`、强调块上的文字有没有加 `.t-on-accent`、大数字压在面板上有没有加
+   `.t-on-surface`。**它不管你把东西放在哪**，只核放完之后对不对得上；`✗` 要修，`·` 是提醒。
+
+7. **录制**：
    ```bash
    node <skill>/scripts/capture.mjs <deck>.html -o <deck>.mp4
    ```
@@ -48,7 +60,7 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 
    工具要解析结果时加 `--json <报告>.json`：同样的内容（页面自报的问题、每页的转场帧区间
    和时长），但是机器可读的。**别去解析 stdout** —— 那是给人看的，措辞随时会改。
-7. **看视频**：先按正常速度完整看一遍（抽帧拼图代替不了这一步，太快的转场在拼图里看着是连续的）。
+8. **看视频**：先按正常速度完整看一遍（抽帧拼图代替不了这一步，太快的转场在拼图里看着是连续的）。
    再按 capture 打印的「转场帧」区间抽帧，逐条对照 `transitions.md` 末尾的「自检标准」。
    有问题回第 5 步改。
 
@@ -68,13 +80,36 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 | --- | --- |
 | `runtime/tokens.css` | 设计变量和样式类（默认主题）。不要改，也不要在稿子里覆盖 |
 | `runtime/themes/` | 其他主题，只覆盖设计变量。可以按 `references/themes.md` 新建 |
+| `runtime/palettes/` | 配色，只给那 10 个颜色变量。**任意配色配任意主题**，在主题之后引入 |
+| `runtime/pairs.json` | 颜色配对表（哪个类压在哪个类上），`check-palettes.mjs` 读它 |
 | `runtime/engine.js` | reveal 初始化 + 各种转场的实现 + 录制接口 |
 | `scripts/capture.mjs` | 逐帧录视频（系统 Chrome，不下载浏览器），打印每次转场的帧区间；`--json` 出机器可读报告 |
+| `scripts/check-deck.mjs` | 核稿子有没有违反 `visual-spec.md` 里写死数值的规则（`npm run deck`） |
+| `scripts/check-palettes.mjs` | 核配色的对比度（`npm run palettes`），新建配色必须跑 |
 | `templates/starter.html` | 汇报稿起始文件 |
 | `templates/story-starter.html` | 故事稿起始文件 |
 | `examples/story-circle/` | 故事模式示例（电话 → 相机 → 电视） |
 | `examples/editorial-forest/` | 主题 + 「整页 ↔ 卡片」示例（封面 → 目录 → 数据页） |
 | `examples/soft-editorial/` | 主题 + 形态变换换布局 + 多合一示例（洞察卡 → 数据面板 → 图表卡） |
+
+### 示例怎么用
+
+**示例是给你看手法和分寸的，不是版式模板。**本 skill 没有版式模板，这是有意的 ——
+一份稿子的好坏在于每页的构图贴不贴它自己的内容，而模板给的是「填空位」。
+要填空位的话，直接用 Keynote 或 PowerPoint 的预设主题就好了，那是它们更擅长的事；
+本 skill 的全部价值在**页与页之间的连续运动**上，而那恰恰是母版格式表达不了的 ——
+母版描述一页的结构，它的数据模型里没有「这一页的深蓝方块是下一页的整页底色」这种东西。
+
+所以看示例时，分清两样东西：
+
+| 照着抄 | 不要抄 |
+| --- | --- |
+| **做转场锚的元素的位置** —— 共享元素、形态变换、匹配剪辑的两页必须对得上，`visual-spec.md`「为转场预留」给的标准位置就是为这个 | 整页的构图。换了内容还照搬坐标，出来的是「别人的页面填了你的字」 |
+| 手法怎么选：两页什么关系 → 用哪种转场 | 具体的文案长度、条目个数、面板比例 |
+| 锚点怎么命名、`data-*` 怎么配对 | 颜色和字号的具体搭配（那是主题和配色的事） |
+
+构图自由是有边界的，边界由 `node scripts/check-deck.mjs` 核（流程第 6 步）——
+它不管你把东西放在哪，只核放完之后对不对得上。**能被事后核的约束，就不必事前锁死构图。**
 
 ## 不许做的
 
