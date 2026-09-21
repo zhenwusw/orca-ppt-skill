@@ -25,5 +25,6 @@
   --accent: #b5432f;
   --accent-soft: #856428;
   --text-on-accent: #f0ece3;
+  --accent-text: #b5432f;         /* 朱砂本身就够深，沿用 --accent */
   --text-on-surface: #f0ece3;
 }

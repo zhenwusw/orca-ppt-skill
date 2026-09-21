@@ -22,5 +22,6 @@
   --accent: #e1a4c2;
   --accent-soft: #e8c9b6;
   --text-on-accent: #2a241b;
+  --accent-text: #b13b75;         /* 柔粉的深档 */
   --text-on-surface: #2a241b;
 }

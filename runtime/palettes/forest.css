@@ -22,5 +22,6 @@
   --accent: #e89cb1;
   --accent-soft: #d27e96;
   --text-on-accent: #1a1a17;
+  --accent-text: #b92b52;         /* 灰粉的深档 */
   --text-on-surface: #efe7d4;
 }

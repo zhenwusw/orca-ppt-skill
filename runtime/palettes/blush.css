@@ -22,5 +22,6 @@
   --accent: #e3c24a;
   --accent-soft: #cfa92e;
   --text-on-accent: #7a1f35;
+  --accent-text: #5f4d0f;         /* 奶油黄压到能读的深度（酒红字之外的第二种强调文字色） */
   --text-on-surface: #f2d86a;
 }

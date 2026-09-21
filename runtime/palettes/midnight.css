@@ -27,5 +27,6 @@
   --accent: #eab308;
   --accent-soft: #ef6d7a;
   --text-on-accent: #121016;
+  --accent-text: #eab308;         /* 深底上强调色本身就够亮，沿用 --accent */
   --text-on-surface: #121016;
 }
