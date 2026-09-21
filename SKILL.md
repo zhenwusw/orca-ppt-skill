@@ -27,6 +27,10 @@ description: 生成带电影级转场的 HTML 演示稿（reveal.js + GSAP）。
 **用户用剪辑软件里的转场名提需求时**（推、交叉缩放、圆形划像、溶解、百叶窗……），
 先读 `references/premiere-mapping.md`，按他想要的感觉选手法，不要照着复刻效果。
 
+## 产品分栏动画案例
+
+用户要“四栏产品依次切换，最后展开全屏”，或要用内置案例学习共享元素时，读 [references/product-showcase.md](references/product-showcase.md)。演示在 `examples/drink-showcase/index.html`，分步播放和可复制提示词在 `tutorial.html`。这个案例用五页状态实现，无需 Remotion 或额外 motion skill；局部字阶、配色、画外待命和时长例外仅限该案例配置。
+
 ## 流程（按顺序，不许跳）
 
 0. **装依赖**：本 skill 根目录下没有 `node_modules/` 时，先在根目录跑 `npm install`（页面引用里面的 reveal.js 和 GSAP，录制要用 playwright-core）。

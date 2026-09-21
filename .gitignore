@@ -44,3 +44,11 @@ examples/*/thumb.jpg
 
 # 验证配色时渲的组合样张（theme--palette.jpg），不进仓库
 runtime/themes/samples/*--*.jpg
+
+# wrangler 本地缓存
+.wrangler/
+
+# 产品共享元素教学案例（保留源文件，不提交录制产物）
+!examples/drink-showcase/
+examples/drink-showcase/index.mp4
+examples/drink-showcase/capture-report.json

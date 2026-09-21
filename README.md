@@ -48,6 +48,12 @@ npx skills add zhenwusw/orca-ppt-skill -g -a claude-code
 要做场景**内部**的 MG 动画（格子依次亮起、卡片弹出、数字滚动），
 再装 [orca-motion-skill](https://github.com/zhenwusw/orca-motion-skill)，两个放在同一个 skills 目录下。
 
+## 产品分栏动画教学
+
+[Drink showcase](examples/drink-showcase/index.html)：五页 HTML slides 复刻四栏产品切换与全屏展开。
+[打开分步教程](examples/drink-showcase/tutorial.html)，可正常播放、慢放、查看各页状态并复制提示词。
+配套 [制作说明](examples/drink-showcase/README.md) 和 [技能参考规范](references/product-showcase.md)。
+
 ## License
 
 [MIT](LICENSE)
