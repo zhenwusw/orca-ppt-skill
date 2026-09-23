@@ -630,11 +630,34 @@
     return { from: +ma[2].replace(/,/g, ""), to: +mb[2].replace(/,/g, ""), fmt };
   }
 
-  // 原地替换：旧的在原位淡出，新的在原位淡入，不动不放大
+  // 元素自己有没有不透明的底（色块、卡片、图片）。
+  function isOpaque(el) {
+    if (/^(IMG|VIDEO|CANVAS|PICTURE)$/.test(el.tagName)) return true;
+    const cs = getComputedStyle(el);
+    if (cs.backgroundImage !== "none") return true;
+    const c = cs.backgroundColor;
+    if (!c || c === "transparent") return false;
+    const slash = c.match(/\/\s*([\d.]+)(%?)\s*\)$/);             // oklch(… / 0.5)、rgb(… / 50%)
+    if (slash) return parseFloat(slash[1]) * (slash[2] ? 0.01 : 1) >= 0.99;
+    const rgba = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/);   // rgba(0, 0, 0, 0)
+    if (rgba) return parseFloat(rgba[1]) >= 0.99;
+    return true;                                                   // 不带 alpha 的写法都是不透明
+  }
+
+  // 原地替换：新的在原位淡入，不动不放大。
+  // 两个都有不透明底时，旧的不跟着同时淡：两层各 50% 叠起来只盖住 75%，背景会透出来，
+  // 中点那一帧整块发暗（实测橙牌换深色牌，中点是 (76,48,35)，两色平均该是 (132,78,45)）。
+  // 旧的压在新的正下方（见上面 pairs 那段），保持不透明，新的淡入就是两色的线性混合，最后再藏。
+  // 文字这类本身透明的照旧同时淡 —— 旧字一直不透明的话，会清楚地露在新字底下。
   function swapTween(tl, ghost, next, d) {
     gsap.set(next, { autoAlpha: 0 });
-    tl.to(ghost, { autoAlpha: 0, duration: d, ease: "power1.inOut" }, 0);
     tl.to(next, { autoAlpha: 1, duration: d, ease: "power1.inOut" }, 0);
+    if (isOpaque(ghost) && isOpaque(next)) {
+      // 排在最后一帧之前：录制最后一次 seek 落在 (帧数 - 1) / fps，正好 d 的话执行不到（同 textTween）
+      tl.set(ghost, { autoAlpha: 0 }, Math.max(0, d - 1 / 30));
+    } else {
+      tl.to(ghost, { autoAlpha: 0, duration: d, ease: "power1.inOut" }, 0);
+    }
   }
 
   // 文字级匹配：配上的字从旧位置移到新位置，没配上的旧字淡出，新字从它前面那个留下来的字旁边长出来
@@ -1435,6 +1458,52 @@
     return true;
   }
 
+  // ───────── 往前翻：转场没放完时不许跳 ─────────
+  // 转场放到一半按 →，reveal 立刻切页、发 slidechanged，而这个事件取消不了 —— 到那时只能由
+  // cleanup 把正在跑的转场拨到终点，观众看到一次跳帧（实测一变多放到 14% 被拨走，跳过 1.8 秒）。
+  // 录制是离线逐帧 seek，永远碰不到这种情况，自检也查不出来。所以在翻页**之前**拦：
+  //   - 转场在跑：把剩下的部分压到 FINISH_S 秒放完，再翻；
+  //   - 压着的这段时间里又按了：当成要跳过去，放完后直接跳到目标页（跳页本来就没有转场）。
+  // 宿主（比如 OrcaPPT 的画布、自动播放）要往前翻时调 window.__orcaAdvance()，别直接 Reveal.next()。
+  const FINISH_S = 0.15;
+  let queued = 0;
+  const cssTransitions = () =>
+    document.getAnimations().filter((a) => a instanceof CSSTransition && a.playState === "running");
+  function advance() {
+    if (CAPTURE) return Reveal.next();
+    if (queued) {
+      queued++;
+      return;
+    }
+    // 共享元素走 reveal 的 auto-animate，是 CSS transition，不在 current 里，要一起看
+    const running = cssTransitions();
+    if (!current?.isActive() && running.length === 0) return Reveal.next();
+
+    queued = 1;
+    const done = [];
+    if (current?.isActive()) {
+      const tl = current;
+      const left = (tl.duration() - tl.time()) / tl.timeScale();
+      if (left > FINISH_S) tl.timeScale(tl.timeScale() * (left / FINISH_S));
+      done.push(new Promise((resolve) => tl.eventCallback("onComplete", resolve)));
+    }
+    for (const a of running) {
+      const left = (a.effect.getComputedTiming().endTime - a.currentTime) / a.playbackRate;
+      if (left > FINISH_S * 1000) a.playbackRate *= left / (FINISH_S * 1000);
+      done.push(a.finished.catch(() => {}));
+    }
+    // 等真正放完再翻 —— 按固定时长翻的话，掉帧时最后一截还是会被 cleanup 拨掉。
+    // 兜底一个超时：页面在后台时 rAF 会停，别让翻页永远卡住。
+    const timeout = new Promise((resolve) => setTimeout(resolve, FINISH_S * 1000 + 400));
+    Promise.race([Promise.all(done), timeout]).then(() => {
+      const steps = queued;
+      queued = 0;
+      if (steps === 1) Reveal.next();
+      else Reveal.slide(Math.min(Reveal.getIndices().h + steps, Reveal.getTotalSlides() - 1));
+    });
+  }
+  window.__orcaAdvance = advance;
+
   prepare();
   prepareStory();
   prepareVideos();
@@ -1450,6 +1519,8 @@
     backgroundTransition: "none",
     autoAnimateDuration: 0.9,
     autoAnimateEasing: "cubic-bezier(0.65, 0, 0.35, 1)",
+    // 往前翻的键都交给 advance（见上）。往回翻不管：往回本来就是硬切。
+    keyboard: { 32: advance, 34: advance, 39: advance, 76: advance, 78: advance },
   });
   Reveal.on("ready", (e) => {
     lastIndex = e.indexh;
