@@ -16,6 +16,18 @@
 // 录制模式（URL 带 ?capture）：动画全部暂停，由 scripts/capture.mjs 调 __capture.seek(ms) 逐帧推进。
 (() => {
   const CAPTURE = new URLSearchParams(location.search).has("capture");
+  // 减少动效。**显式开关**:URL 带 ?calm,或 <html> / <body> 上写 data-motion="calm"。
+  // 不跟系统的 prefers-reduced-motion 走 —— 放映时是演讲者电脑上的设置在决定观众看到什么,
+  // 观众并没有选过;自动退化等于演讲者不知情地把稿子的价值关掉了。录制模式忽略它。
+  // 开了之后:大幅缩放的手法(整页推近、放大进元素、推近匹配)换成短淡化,运动模糊关掉;
+  // 共享元素、形态变换、一变多、多合一、元素交接照旧 —— 它们是讲清前后关系的那部分。
+  const CALM =
+    !CAPTURE &&
+    (new URLSearchParams(location.search).has("calm") ||
+      document.documentElement.dataset.motion === "calm" ||
+      document.body?.dataset.motion === "calm");
+  const CALM_REPLACE = new Set(["zoom-through", "zoom-into", "zoom-match"]);
+  const CALM_FADE_S = 0.4;
   const W = 1920;
   const H = 1080;
 
@@ -49,7 +61,7 @@
 
   // 单方向模糊（SVG 高斯模糊只在一个轴上有值）。返回一个设置函数，参数是速度（px/s）
   function directionalBlur(els, axis, max = 10) {
-    if (!els.length) return () => {};
+    if (!els.length || CALM) return () => {};
     if (!blurSvg) {
       blurSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       blurSvg.setAttribute("width", "0");
@@ -79,6 +91,7 @@
 
   // 各向同性模糊（缩放用）。元素本身有 scale 时，CSS 滤镜会跟着被放大，所以要除回去
   function isoBlur(els, px, scale = 1) {
+    if (CALM) return;
     for (const el of els) {
       el.style.filter = px > 0.05 ? `blur(${px / scale}px)` : "";
       blurred.add(el);
@@ -1452,7 +1465,10 @@
     const enter = currentSlide.querySelector(":scope > .st-enter");
     const ghost = snapshot(previousSlide);
     currentSlide.prepend(ghost);
-    current = build(currentSlide, ghost, enter);
+    // 减少动效:大幅缩放换成原地淡化 —— 上一页的快照盖在新页上,淡掉就露出新页
+    current = CALM && CALM_REPLACE.has(kind)
+      ? timeline().to(ghost, { autoAlpha: 0, duration: CALM_FADE_S, ease: "power1.inOut" }, 0)
+      : build(currentSlide, ghost, enter);
     current.progress(0);
     if (!CAPTURE) current.play();
     return true;
@@ -1574,5 +1590,8 @@
       await Promise.all(videos.map((v) => seekVideo(v, Math.max(0, ms - sceneOffset) / 1000)));
     },
     count: () => Reveal.getTotalSlides(),
+    // 放映时转场没放完就按下一页,剩下的在这么多毫秒里快进放完(见 advance)。
+    // capture.mjs 的 --interrupt 按它录「中途打断」那一段,两边必须是同一个数。
+    finishMs: FINISH_S * 1000,
   };
 })();

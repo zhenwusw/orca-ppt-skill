@@ -1,6 +1,10 @@
 // 把一份演示稿逐帧录成视频：每帧 seek 到确定时刻再截图，不依赖真实时间。
-// 用法：node scripts/capture.mjs <deck.html> [-o out.mp4] [--fps 30] [--json report.json]
+// 用法：node scripts/capture.mjs <deck.html> [-o out.mp4] [--fps 30] [--json report.json] [--interrupt 页号@毫秒]
 // 每页的停留时长读 <section data-hold="秒">，默认 1.5。
+//
+// --interrupt 3@480：录第 3 页的转场时，在第 480 毫秒「按下一页」—— 按放映时的样子录：
+// 剩下的转场在 __capture.finishMs 里快进放完，不停留，直接接下一页的转场。
+// 放映时手快就是这样；逐帧录制平时碰不到，自检第 2 条（不许跳变）要靠它才验得到。可以写多个，用逗号隔开。
 //
 // --json 写一份机器可读的录制报告：页面自报的问题、每页的转场帧区间、时长。
 // 给工具用的（比如 orca-ppt 的自检闸），人看 stdout 就行。
@@ -13,7 +17,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
-const positional = args.filter((a, i) => !a.startsWith("-") && !["-o", "--fps"].includes(args[i - 1]));
+const positional = args.filter((a, i) => !a.startsWith("-") && !["-o", "--fps", "--json", "--interrupt"].includes(args[i - 1]));
 const deck = positional[0];
 if (!deck) {
   console.error("用法：node scripts/capture.mjs <deck.html> [-o out.mp4] [--fps 30]");
@@ -23,6 +27,20 @@ const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) +
 const FPS = +opt("--fps", 30);
 const out = path.resolve(opt("-o", deck.replace(/\.html?$/, "") + ".mp4"));
 const jsonOut = args.includes("--json") ? path.resolve(opt("--json")) : null;
+// 页号(从 1 数,和输出里的「第 N 页」一致) → 在转场第几毫秒按下一页
+const interrupts = new Map(
+  String(opt("--interrupt", ""))
+    .split(",")
+    .filter(Boolean)
+    .map((spec) => {
+      const m = /^(\d+)@(\d+)$/.exec(spec.trim());
+      if (!m) {
+        console.error(`--interrupt 写成「页号@毫秒」，比如 3@480：${spec}`);
+        process.exit(1);
+      }
+      return [+m[1] - 1, +m[2]];
+    }),
+);
 
 const framesDir = mkdtempSync(path.join(tmpdir(), "orca-transition-capture-"));
 // 每页一条，给 --json 用
@@ -51,6 +69,35 @@ try {
   const total = await page.evaluate(() => window.__capture.count());
   for (let i = 0; i < total; i++) {
     const { transition, hold, scene, video } = await page.evaluate((idx) => window.__capture.go(idx), i);
+    const at = interrupts.get(i);
+    if (at !== undefined && at < transition && i < total - 1) {
+      // 中途打断：录到 at，剩下的压进 finishMs 快进放完，不停留，下一轮直接录下一页的转场
+      const finishMs = await page.evaluate(() => window.__capture.finishMs ?? 150);
+      const left = transition - at;
+      const ff = Math.min(left, finishMs);
+      const firstFrame = n;
+      const before = Math.round((at / 1000) * FPS);
+      for (let f = 0; f < before; f++) {
+        await seek((f / FPS) * 1000);
+        await page.screenshot({ path: framePath() });
+      }
+      const ffFrames = Math.max(1, Math.round((ff / 1000) * FPS));
+      for (let f = 1; f <= ffFrames; f++) {
+        await seek(at + (left * f) / ffFrames);
+        await page.screenshot({ path: framePath() });
+      }
+      slides.push({
+        index: i,
+        transitionMs: transition,
+        holdMs: 0,
+        transitionFrames: { from: firstFrame, to: n - 1 },
+        interrupted: { atMs: at, fastForwardMs: ff, fastForwardFrames: { from: firstFrame + before, to: n - 1 } },
+        sceneMs: 0,
+        videoMs: 0,
+      });
+      console.log(`第 ${i + 1} 页：转场 ${(transition / 1000).toFixed(2)}s，在 ${at}ms 按了下一页，剩下的快进 ${ff}ms，转场帧 ${firstFrame}–${n - 1}`);
+      continue;
+    }
     const frames = Math.round((transition / 1000) * FPS);
     const firstFrame = n;
     for (let f = 0; f < frames; f++) {
